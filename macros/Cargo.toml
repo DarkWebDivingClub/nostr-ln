@@ -1,0 +1,10 @@
+[package]
+name = "nostr-ln-macros"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+description = "Proc macros for nostr-ln. Filled by mission 13.2."
+publish = false
+
+[lib]
+proc-macro = true
