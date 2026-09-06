@@ -1,0 +1,7 @@
+error[E0046]: not all trait items implemented, missing: `methods`
+ --> tests/compile_fail/no_service_macro.rs:9:1
+  |
+9 | impl ControlService for Node {}
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ missing `methods` in implementation
+  |
+  = help: implement the missing item: `fn methods(&self) -> &'static [&'static str] { todo!() }`

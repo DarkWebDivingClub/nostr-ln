@@ -11,7 +11,8 @@ repository = "https://github.com/DarkWebDivingClub/nostr-ln"
 publish = false
 
 [dependencies]
-nostr = { git = "https://github.com/dukeh3/nostr.git", rev = "9ac9adc2", default-features = false, features = ["std", "nip44", "os-rng"] }
+nostr = { git = "https://github.com/dukeh3/nostr.git", rev = "9ac9adc2", default-features = false, features = ["std", "nip44", "nip47", "os-rng"] }
+nostr-ln-macros = { path = "macros" }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 tracing = "0.1"
@@ -27,3 +28,5 @@ client = ["dep:nostr-sdk", "dep:tokio"]
 
 [dev-dependencies]
 serde_json = "1"
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "time"] }
+trybuild = "1"

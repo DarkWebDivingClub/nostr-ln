@@ -21,12 +21,17 @@
 
 pub mod grant;
 pub mod nnc;
+pub mod service;
+
+/// Generates `methods()` from an impl block. See [`nostr_ln_macros::service`].
+pub use nostr_ln_macros::service;
 pub mod limit;
 pub mod profile;
 pub mod subscription;
 
 pub use grant::{Grants, VerifiedGrant, GRANT_KIND};
-pub use nnc::{Method, NotificationType, Request, Response, Notification};
+pub use nnc::{Method, Notification, NotificationType, Request, Response};
+pub use service::{Caller, ControlService, Handler, Prepared, Usage, WalletService};
 pub use limit::{Bucket, RateLimitRule};
 pub use profile::{Denied, MethodAccessRule, UsageProfile, OTHERS};
 pub use subscription::{Subscriptions, SUBSCRIPTION_KIND};

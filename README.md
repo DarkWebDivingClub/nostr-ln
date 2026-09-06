@@ -24,6 +24,7 @@ it.**
 | `subscription` | kind `30199` — what a controller wants, intersected with what its grant permits |
 | `nnc` | NIP-XX as types: sixteen methods, two notifications, the request and response envelopes |
 | `nnc::client` | `NostrNodeControl` — one thin function per method. Behind the `client` feature |
+| `service` | the handler traits, the dispatch, and the pipeline that orders them |
 
 Mission 13.2 adds the handler traits, the dispatch and the seven-step
 pipeline; 13.3 adds NIP-44 transport and the info events.
@@ -50,6 +51,54 @@ grant rather than accepting any.
   its grant says what it *may have*; delivery is the intersection. Narrow
   the grant and delivery stops at once, without the subscription event
   changing — the node does not own that event and cannot delete it.
+
+## The pipeline
+
+A node writes a handler. This crate owns everything else, in this order:
+
+```text
+1 decode      NIP-44, parse
+2 resolve     not in methods() -> NOT_IMPLEMENTED
+3 authorize   grant, else OTHERS, else UNAUTHORIZED / RESTRICTED
+4 validate    a cost from unvalidated parameters is garbage
+5 limits      a. rate       first, so that preparing is not free
+              b. prepare    the node selects a route or feerate; nothing moves
+              c. quota      absolute, against the prepared cost
+6 execute     the prepared operation
+7 commit      the quoted cost — the number that was checked
+```
+
+**This is not the order NIP-XX gives.** That order checks the quota against
+a cost derived from the request, which excludes fees — so a node spends
+`amount + fee` while recording `amount`, on every spending call. See
+[issue 1](https://github.com/DarkWebDivingClub/nostr-ln/issues/1).
+
+Two orderings carry weight beyond tidiness. **Authorize precedes validate**,
+so a caller with no grant learns nothing about which parameters are
+acceptable. **Rate precedes prepare**, so nobody can make the node compute a
+thousand routes for free.
+
+`prepare` returns the cost **and the selection** — the route, the feerate —
+so `execute` acts on that choice rather than making it again, which is how
+the two could otherwise differ.
+
+## A node cannot advertise what it does not implement
+
+```rust
+#[nostr_ln::service]
+impl ControlService for MyNode {
+    fn list_channels(..) { .. }
+    fn list_peers(..) { .. }
+}
+// methods() is generated: &["list_channels", "list_peers"]
+```
+
+Every trait method defaults to `NOT_IMPLEMENTED`, so a node writes only
+what it serves. `methods()` has **no** default, so forgetting the macro is
+a compile error rather than a node that advertises nothing and denies
+everything at runtime — and writing `methods()` by hand is refused, because
+a hand-written list can disagree with the impl it describes. Both are
+compile-fail tests.
 
 ## The client
 

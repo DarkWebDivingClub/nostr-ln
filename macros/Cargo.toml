@@ -6,5 +6,10 @@ license = "MIT"
 description = "Proc macros for nostr-ln. Filled by mission 13.2."
 publish = false
 
+[dependencies]
+proc-macro2 = "1"
+quote = "1"
+syn = { version = "2", features = ["full"] }
+
 [lib]
 proc-macro = true
