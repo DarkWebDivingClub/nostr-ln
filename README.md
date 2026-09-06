@@ -25,6 +25,7 @@ it.**
 | `nnc` | NIP-XX as types: sixteen methods, two notifications, the request and response envelopes |
 | `nnc::client` | `NostrNodeControl` — one thin function per method. Behind the `client` feature |
 | `service` | the handler traits, the dispatch, and the pipeline that orders them |
+| `service::transport` | relay I/O, NIP-44, the info events. Behind the `transport` feature |
 
 Mission 13.2 adds the handler traits, the dispatch and the seven-step
 pipeline; 13.3 adds NIP-44 transport and the info events.
@@ -81,6 +82,28 @@ thousand routes for free.
 `prepare` returns the cost **and the selection** — the route, the feerate —
 so `execute` acts on that choice rather than making it again, which is how
 the two could otherwise differ.
+
+## Reconnecting re-reads, rather than resuming
+
+```rust
+Service::new(signer, relays, owners)
+    .control(node)      // 13198 published, 23198 served
+    .run().await        // no .wallet() — 13194 never published,
+                        // 23194 answered NOT_IMPLEMENTED
+```
+
+Grants arrive over the same relay as requests, so a disconnected service is
+not answering anything either — there is no window in which it enforces
+stale grants, and no reason to refuse while away.
+
+**But a reconnect must re-read, not resume.** A subscription with
+`since(now)` would silently miss a revocation published during the gap, and
+the service would go on enforcing a grant that no longer exists. Both
+durable kinds are addressable, so reading current state is one query and
+needs no history.
+
+Reconnection is not in the SDK's notification stream — it carries events,
+relay messages and shutdown — so it is observed by watching relay status.
 
 ## A node cannot advertise what it does not implement
 

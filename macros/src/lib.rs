@@ -26,13 +26,28 @@ use syn::{parse_macro_input, ImplItem, ItemImpl};
 /// forgetting this macro is a compile error rather than a node that
 /// advertises nothing and denies everything at runtime.
 ///
-/// `prepare` is excluded: it is a pipeline hook, not a method a controller
-/// can call, and advertising it would offer something nobody can invoke.
+/// `prepare` and `call` are excluded: a pipeline hook and a dispatch entry
+/// point, neither of which a controller can invoke.
+///
+/// # It cannot serve `WalletService`
+///
+/// `WalletService` has a single `call` entry point rather than one function
+/// per method, because NIP-47's types live elsewhere until mission 18. So
+/// there is nothing in the impl block to read, and this macro would emit an
+/// empty list. A `WalletService` writes `methods()` by hand and carries the
+/// weaker guarantee that comes with it — a list that can disagree with what
+/// the handler actually answers.
+///
+/// `ControlService` has sixteen typed methods and does not have that
+/// problem, which is the difference mission 18 removes.
 #[proc_macro_attribute]
 pub fn service(_attr: TokenStream, item: TokenStream) -> TokenStream {
     let mut block = parse_macro_input!(item as ItemImpl);
 
-    const NOT_A_METHOD: [&str; 2] = ["prepare", "methods"];
+    // `prepare` is a pipeline hook and `call` is a dispatch entry point.
+    // Neither is a method a controller can invoke, and advertising one
+    // would offer something nobody can call.
+    const NOT_A_METHOD: [&str; 3] = ["prepare", "methods", "call"];
 
     let names: Vec<String> = block
         .items

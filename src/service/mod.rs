@@ -10,7 +10,13 @@ pub mod handler;
 pub mod pipeline;
 pub mod state;
 
+#[cfg(feature = "transport")]
+pub mod transport;
+
 pub use dispatch::{dispatch_control, dispatch_wallet};
 pub use handler::{Caller, ControlService, Prepared, WalletService};
 pub use pipeline::{handle, Handler, Protocol};
 pub use state::Usage;
+
+#[cfg(feature = "transport")]
+pub use transport::Service;
