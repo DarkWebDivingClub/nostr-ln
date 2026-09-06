@@ -106,19 +106,63 @@ pub struct Notifier {
     delivery: Arc<RwLock<Delivery>>,
 }
 
+/// Why a controller is receiving a notification.
+///
+/// NIP-XX requires a notification to **name what caused it**, on both
+/// routes: an `e` tag for the deferred result of an asynchronous command,
+/// an `a` tag for a subscription delivery, and both when one notification
+/// is both.
+///
+/// There is deliberately no way to spell *no cause*. An untagged
+/// notification is malformed, and it is the malformed event that is
+/// expensive: it is byte-identical to a legitimate subscription delivery,
+/// so a client cannot tell that anything is wrong — it waits for an outcome
+/// that already arrived and was discarded, and reports a timeout. That
+/// exact failure cost twenty seconds of silence in
+/// [17.3](https://github.com/DarkWebDivingClub/nostr-ln-e2e-test), from
+/// passing `None` where an id belonged. Making the state unconstructable
+/// is cheaper than testing for it, as with [`VerifiedGrant`].
+///
+/// [`VerifiedGrant`]: crate::VerifiedGrant
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Cause {
+    /// The deferred result of an asynchronous command. Carries an `e` tag.
+    Command(EventId),
+    /// The delivery of a subscription. Carries an `a` tag.
+    Subscription,
+    /// Both: the controller issued the command *and* subscribed to the
+    /// type. Carries both tags, in one notification rather than two.
+    Both(EventId),
+}
+
+impl Cause {
+    /// The request this is the outcome of, if it is one.
+    pub fn request_id(&self) -> Option<EventId> {
+        match self {
+            Self::Command(id) | Self::Both(id) => Some(*id),
+            Self::Subscription => None,
+        }
+    }
+
+    /// Whether it is also a subscription delivery.
+    pub fn is_subscription(&self) -> bool {
+        matches!(self, Self::Subscription | Self::Both(_))
+    }
+}
+
 impl Notifier {
-    /// Send a notification to one controller.
+    /// Send a notification to one controller, naming what caused it.
     ///
-    /// `in_reply_to` is the request that caused it, for the deferred result
-    /// of an asynchronous command — NIP-XX makes the `e` tag a MUST there,
-    /// and it is what lets a client tie an outcome to the command that
-    /// caused it. Pass `None` for a subscription delivery, which follows
-    /// from no request.
+    /// The tags follow from `cause` mechanically, which is the point of
+    /// taking one rather than an `Option<EventId>`: an `a` tag naming this
+    /// controller's subscription, an `e` tag naming the request, or both.
+    /// The `a` tag is per recipient — it names *their* subscription, since
+    /// a notification is addressed and encrypted to exactly one controller.
     pub async fn notify(
         &self,
         to: &PublicKey,
         notification: &Notification,
-        in_reply_to: Option<EventId>,
+        cause: Cause,
     ) -> Result<(), Error> {
         let json = serde_json::to_string(notification).map_err(|e| Error::Relay(e.to_string()))?;
         let ciphertext = self
@@ -127,42 +171,97 @@ impl Notifier {
             .await
             .map_err(Error::Signer)?;
         let mut tags = vec![Tag::public_key(*to)];
-        if let Some(id) = in_reply_to {
+        if let Some(id) = cause.request_id() {
             tags.push(Tag::event(id));
+        }
+        if cause.is_subscription() {
+            let me = self.signer.get_public_key().await.map_err(Error::Signer)?;
+            tags.push(Tag::coordinate(
+                Coordinate {
+                    kind: Kind::Custom(SUBSCRIPTION_KIND),
+                    public_key: *to,
+                    identifier: me.to_hex(),
+                },
+                None,
+            ));
         }
         let event = EventBuilder::new(Kind::Custom(NOTIFICATION_KIND), ciphertext).tags(tags);
         self.client.send_event_builder(event).await.map_err(relay_err)?;
         Ok(())
     }
 
+    /// Deliver one notification by every route that applies to it.
+    ///
+    /// This is the whole of NIP-XX's delivery rule in one call, and the
+    /// reason a node should prefer it to [`notify`](Self::notify):
+    ///
+    /// - `caller` — the controller that issued the command this is the
+    ///   outcome of, with its request id — receives it whether or not it is
+    ///   subscribed, as [`Cause::Both`] if it is and [`Cause::Command`] if
+    ///   it is not.
+    /// - every **other** subscriber receives it as
+    ///   [`Cause::Subscription`].
+    ///
+    /// A caller that is also a subscriber gets **one** notification, not
+    /// two, carrying both tags. That is what makes one delivery sufficient:
+    /// nothing here has to notice the overlap and suppress a second send,
+    /// and the client is not left to guess which route a single tag meant.
+    ///
+    /// Pass `None` for something nobody asked for — a peer force-closing —
+    /// which is [`announce`](Self::announce).
+    ///
+    /// Returns how many controllers it reached.
+    pub async fn deliver(
+        &self,
+        notification: &Notification,
+        caller: Option<(PublicKey, EventId)>,
+    ) -> Result<usize, Error> {
+        let ty = notification.notification_type.as_str().to_string();
+        // Computed under the lock and released before any send, so a
+        // handler delivering from inside a request cannot stall the loop.
+        let subscribers: Vec<PublicKey> = {
+            let d = self.delivery.read().unwrap_or_else(|e| e.into_inner());
+            d.subs.recipients(&ty, &d.grants)
+        };
+
+        let mut recipients: Vec<(PublicKey, Cause)> = Vec::with_capacity(subscribers.len() + 1);
+        if let Some((who, request_id)) = caller {
+            let also_subscribed = subscribers.contains(&who);
+            recipients.push((
+                who,
+                if also_subscribed { Cause::Both(request_id) } else { Cause::Command(request_id) },
+            ));
+        }
+        for s in &subscribers {
+            if caller.map(|(who, _)| who) == Some(*s) {
+                continue; // already queued, with both causes
+            }
+            recipients.push((*s, Cause::Subscription));
+        }
+
+        let mut sent = 0;
+        for (controller, cause) in &recipients {
+            // One failed recipient must not silence the rest.
+            match self.notify(controller, notification, *cause).await {
+                Ok(()) => sent += 1,
+                Err(e) => tracing::warn!("could not deliver {ty} to {controller}: {e}"),
+            }
+        }
+        tracing::debug!("delivered {ty} to {sent} of {} recipient(s)", recipients.len());
+        Ok(sent)
+    }
+
     /// Send a notification to everyone subscribed to its type.
     ///
-    /// This is the other notification route: it follows from no request, so
-    /// it carries **no** `e` tag, and it is addressed to whoever has both
-    /// subscribed to the type and been granted it — the intersection, never
-    /// one or the other. A node calls this when something happens to it
-    /// rather than when somebody asks.
+    /// The subscription route alone, for something that follows from no
+    /// command at all — a peer force-closing a channel. Addressed to
+    /// whoever has both subscribed to the type and been granted it: the
+    /// intersection, never one or the other.
     ///
     /// Returns how many controllers it reached. Zero is normal and not an
     /// error: nobody is subscribed.
     pub async fn announce(&self, notification: &Notification) -> Result<usize, Error> {
-        let ty = notification.notification_type.as_str().to_string();
-        // Computed under the lock and released before any send, so a
-        // handler announcing from inside a request cannot stall the loop.
-        let to: Vec<PublicKey> = {
-            let d = self.delivery.read().unwrap_or_else(|e| e.into_inner());
-            d.subs.recipients(&ty, &d.grants)
-        };
-        let mut sent = 0;
-        for controller in &to {
-            // One failed recipient must not silence the rest.
-            match self.notify(controller, notification, None).await {
-                Ok(()) => sent += 1,
-                Err(e) => tracing::warn!("could not announce {ty} to {controller}: {e}"),
-            }
-        }
-        tracing::debug!("announced {ty} to {sent} of {} subscriber(s)", to.len());
-        Ok(sent)
+        self.deliver(notification, None).await
     }
 }
 
@@ -336,7 +435,7 @@ impl Service {
             if event.kind == Kind::Custom(GRANT_KIND) {
                 let _ = grants.apply(&event);
             } else {
-                let _ = subs.apply(&event, grants);
+                let _ = subs.apply(&event, grants, self.signer.as_ref()).await;
             }
         }
     }
@@ -395,7 +494,7 @@ impl Service {
                 self.mirror(grants, subs);
             }
             SUBSCRIPTION_KIND => {
-                let _ = subs.apply(event, grants);
+                let _ = subs.apply(event, grants, self.signer.as_ref()).await;
                 self.mirror(grants, subs);
             }
             WALLET_REQUEST_KIND | CONTROL_REQUEST_KIND => {

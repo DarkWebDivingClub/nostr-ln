@@ -13,6 +13,7 @@ use std::collections::HashMap;
 
 use nostr::event::Event;
 use nostr::key::PublicKey;
+use nostr::signer::NostrSigner;
 
 use crate::grant::Grants;
 
@@ -26,8 +27,14 @@ pub enum Rejected {
     WrongTarget,
     /// No `p` tag naming this node service.
     NotAddressedToThisNode,
-    /// The content is not a JSON array of strings.
+    /// The content is not a JSON array of strings, once decrypted.
     Unparseable,
+    /// The content is not NIP-44 this node service can read.
+    ///
+    /// Distinct from [`Unparseable`](Self::Unparseable) so that a
+    /// plaintext subscription — the shape this kind carried before it was
+    /// encrypted — is refused as what it is rather than as bad JSON.
+    Undecryptable,
     /// The author holds no grant on this node.
     ///
     /// Anyone may publish a kind `30199` naming any node, so a registry
@@ -64,7 +71,19 @@ impl Subscriptions {
     /// The author *is* the subscriber — there is nothing else it could
     /// mean — so no separate authorship check is needed beyond requiring
     /// that the author holds a grant.
-    pub fn apply(&mut self, event: &Event, grants: &Grants) -> Result<usize, Rejected> {
+    ///
+    /// The content is NIP-44, controller to node service, so this needs the
+    /// node's signer. **The grant check runs before the decryption**, and
+    /// that ordering is inside this function rather than left to a caller:
+    /// anyone may publish a kind-`30199` event naming any node, so
+    /// decrypting first would make an unsolicited event cost an ECDH and
+    /// turn a bounded registry into an amplifier.
+    pub async fn apply(
+        &mut self,
+        event: &Event,
+        grants: &Grants,
+        signer: &dyn NostrSigner,
+    ) -> Result<usize, Rejected> {
         let node = self.node.ok_or(Rejected::WrongTarget)?;
         if event.kind.as_u16() != SUBSCRIPTION_KIND {
             return Err(Rejected::WrongKind);
@@ -98,8 +117,14 @@ impl Subscriptions {
             return Err(Rejected::NoGrant);
         }
 
+        // Only now, with a grant established, is decryption worth paying
+        // for. See the note on this function.
+        let plaintext = signer
+            .nip44_decrypt(&event.pubkey, &event.content)
+            .await
+            .map_err(|_| Rejected::Undecryptable)?;
         let types: Vec<String> =
-            serde_json::from_str(&event.content).map_err(|_| Rejected::Unparseable)?;
+            serde_json::from_str(&plaintext).map_err(|_| Rejected::Unparseable)?;
         let created_at = event.created_at.as_secs();
         let controller = event.pubkey.to_hex();
 

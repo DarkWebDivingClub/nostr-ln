@@ -182,7 +182,11 @@ impl NostrNodeControl {
     pub async fn set_subscription(&self, types: &[NotificationType]) -> Result<(), Error> {
         self.bootstrap().await?;
         let names: Vec<&str> = types.iter().map(|t| t.as_str()).collect();
-        let content = serde_json::to_string(&names)?;
+        let content = self
+            .signer
+            .nip44_encrypt(&self.uri.service, &serde_json::to_string(&names)?)
+            .await
+            .map_err(Error::Signer)?;
         let event = EventBuilder::new(Kind::Custom(SUBSCRIPTION_KIND), content)
             .tags([
                 Tag::identifier(self.uri.service.to_hex()),
@@ -220,10 +224,55 @@ impl NostrNodeControl {
             .await
             .map_err(|e| Error::Relay(e.to_string()))?;
 
+        // The subscription this listener is for. A notification delivered
+        // by the subscription route names it, so this is what to match on
+        // — and matching is why the `a` tag exists. Without it a listener
+        // takes every kind-23200 event from the service, including the
+        // deferred results of commands some other part of this client is
+        // awaiting, indistinguishable from what was subscribed to.
+        let mine = format!("{}:{}:{}", SUBSCRIPTION_KIND, me.to_hex(), self.uri.service.to_hex());
+
         let mut notifications = self.client.notifications();
         while let Some(n) = notifications.next().await {
             let ClientNotification::Event { event, .. } = n else { continue };
             if event.kind != Kind::Custom(NOTIFICATION_KIND) || event.pubkey != self.uri.service {
+                continue;
+            }
+            let mut names_a_subscription = false;
+            let mut names_mine = false;
+            let mut names_a_request = false;
+            for t in event.tags.iter() {
+                let s = t.as_slice();
+                match s.first().map(String::as_str) {
+                    Some("a") => {
+                        names_a_subscription = true;
+                        names_mine |= s.get(1).map(String::as_str) == Some(mine.as_str());
+                    }
+                    Some("e") => names_a_request = true,
+                    _ => {}
+                }
+            }
+            if !names_a_subscription {
+                if !names_a_request {
+                    // Neither tag: malformed. NIP-XX requires a
+                    // notification to name what caused it, and this is the
+                    // event a node emits when it forgets — historically
+                    // indistinguishable from a legitimate delivery, which
+                    // is why it is now reported rather than dropped.
+                    tracing::warn!(
+                        id = %event.id,
+                        "notification names no cause — {} is non-conforming; \
+                         NIP-XX requires an e tag, an a tag, or both",
+                        self.uri.service
+                    );
+                }
+                // An `e` tag alone is somebody's deferred result, and a
+                // `Pending` handle is what receives it.
+                continue;
+            }
+            if !names_mine {
+                // A subscription delivery naming another controller's
+                // subscription is not ours to read, whatever the relay did.
                 continue;
             }
             let plaintext = self
