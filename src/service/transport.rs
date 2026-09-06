@@ -20,7 +20,7 @@ use nostr_sdk::prelude::*;
 use super::handler::{ControlService, WalletService};
 use super::pipeline::{self, Handler};
 use super::state::Usage;
-use crate::nnc::{ErrorCode, Method, NncError, Request, Response};
+use crate::nnc::{ErrorCode, Method, NncError, Notification, Request, Response};
 use crate::{Grants, Subscriptions, GRANT_KIND, SUBSCRIPTION_KIND};
 
 /// How often to look for a relay that has come back.
@@ -41,6 +41,8 @@ pub const CONTROL_INFO_KIND: u16 = 13198;
 pub const CONTROL_REQUEST_KIND: u16 = 23198;
 /// NNC response, kind 23199.
 pub const CONTROL_RESPONSE_KIND: u16 = 23199;
+/// NNC notification, kind 23200.
+pub const NOTIFICATION_KIND: u16 = 23200;
 
 /// What can go wrong starting or running a service.
 #[derive(Debug)]
@@ -65,10 +67,56 @@ impl std::error::Error for Error {}
 /// A node service.
 pub struct Service {
     signer: Arc<dyn NostrSigner>,
+    client: Client,
     relays: Vec<String>,
     owners: Vec<PublicKey>,
     wallet: Option<Arc<dyn WalletService>>,
     control: Option<Arc<dyn ControlService>>,
+}
+
+/// Sends notifications on a node service's behalf.
+///
+/// A handler receives one when it is built, because notifications are
+/// triggered by node work rather than by a request — a channel confirming,
+/// a peer force-closing — and a handler that can only answer calls cannot
+/// express that.
+///
+/// It is cheap to clone and `Send + 'static`, so a node can hold one in a
+/// background task.
+#[derive(Clone)]
+pub struct Notifier {
+    client: Client,
+    signer: Arc<dyn NostrSigner>,
+}
+
+impl Notifier {
+    /// Send a notification to one controller.
+    ///
+    /// `in_reply_to` is the request that caused it, for the deferred result
+    /// of an asynchronous command — NIP-XX makes the `e` tag a MUST there,
+    /// and it is what lets a client tie an outcome to the command that
+    /// caused it. Pass `None` for a subscription delivery, which follows
+    /// from no request.
+    pub async fn notify(
+        &self,
+        to: &PublicKey,
+        notification: &Notification,
+        in_reply_to: Option<EventId>,
+    ) -> Result<(), Error> {
+        let json = serde_json::to_string(notification).map_err(|e| Error::Relay(e.to_string()))?;
+        let ciphertext = self
+            .signer
+            .nip44_encrypt(to, &json)
+            .await
+            .map_err(Error::Signer)?;
+        let mut tags = vec![Tag::public_key(*to)];
+        if let Some(id) = in_reply_to {
+            tags.push(Tag::event(id));
+        }
+        let event = EventBuilder::new(Kind::Custom(NOTIFICATION_KIND), ciphertext).tags(tags);
+        self.client.send_event_builder(event).await.map_err(relay_err)?;
+        Ok(())
+    }
 }
 
 impl Service {
@@ -83,13 +131,18 @@ impl Service {
         relays: Vec<String>,
         owners: Vec<PublicKey>,
     ) -> Self {
-        Self {
-            signer: signer.into_nostr_signer(),
-            relays,
-            owners,
-            wallet: None,
-            control: None,
-        }
+        let signer = signer.into_nostr_signer();
+        let client = Client::builder().signer(signer.clone()).build();
+        Self { signer, client, relays, owners, wallet: None, control: None }
+    }
+
+    /// A handle for sending notifications.
+    ///
+    /// Available **before** `run`, so a handler can be built holding one.
+    /// That is the constructor shape the epic asked 13.2 to leave room for:
+    /// a handler is constructed with what it needs rather than bare.
+    pub fn notifier(&self) -> Notifier {
+        Notifier { client: self.client.clone(), signer: self.signer.clone() }
     }
 
     /// Serve NWC. Publishes kind 13194 and answers 23194.
@@ -107,7 +160,7 @@ impl Service {
     /// Connect, publish info events, and answer requests until stopped.
     pub async fn run(self) -> Result<(), Error> {
         let me = self.signer.get_public_key().await.map_err(Error::Signer)?;
-        let client = Client::builder().signer(self.signer.clone()).build();
+        let client = self.client.clone();
         for relay in &self.relays {
             client.add_relay(relay.as_str()).await.map_err(relay_err)?;
         }
