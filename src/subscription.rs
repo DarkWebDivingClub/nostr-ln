@@ -100,7 +100,7 @@ impl Subscriptions {
 
         let types: Vec<String> =
             serde_json::from_str(&event.content).map_err(|_| Rejected::Unparseable)?;
-        let created_at = event.created_at.as_u64();
+        let created_at = event.created_at.as_secs();
         let controller = event.pubkey.to_hex();
 
         if let Some(existing) = self.by_controller.get(&controller) {

@@ -124,7 +124,7 @@ impl Grants {
         }
 
         let controller = target(&node_hex, event).ok_or(Rejected::WrongTarget)?;
-        let created_at = event.created_at.as_u64();
+        let created_at = event.created_at.as_secs();
 
         if let Some(existing) = self.get_raw(&controller) {
             if created_at < existing.created_at {

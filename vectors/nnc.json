@@ -1,0 +1,405 @@
+{
+  "note": "Generated from XX.md by examples/generate_nnc_vectors.rs. Each entry is JSON the specification itself shows.",
+  "source": "/home/rene/git/nips/XX.md",
+  "vectors": [
+    {
+      "kind": "method",
+      "name": "list_channels",
+      "request": {
+        "method": "list_channels",
+        "params": {}
+      },
+      "response": {
+        "result": {
+          "channels": [
+            {
+              "capacity": 1000000,
+              "funding_output_index": 0,
+              "funding_txid": "abc123...",
+              "id": "abc123",
+              "is_private": false,
+              "local_balance": 500000,
+              "peer_pubkey": "02abc...",
+              "remote_balance": 500000,
+              "short_channel_id": "800000x1x0",
+              "state": "active"
+            }
+          ]
+        },
+        "result_type": "list_channels"
+      }
+    },
+    {
+      "kind": "method",
+      "name": "open_channel",
+      "request": {
+        "method": "open_channel",
+        "params": {
+          "amount_sats": 1000000,
+          "close_address": "bc1q...",
+          "host": "10.0.0.1:9735",
+          "notify": true,
+          "private": false,
+          "pubkey": "02abc...",
+          "push_amount": 0
+        }
+      },
+      "response": {
+        "result": {},
+        "result_type": "open_channel"
+      }
+    },
+    {
+      "kind": "method",
+      "name": "close_channel",
+      "request": {
+        "method": "close_channel",
+        "params": {
+          "close_address": "bc1q...",
+          "force": false,
+          "id": "abc123",
+          "notify": true
+        }
+      },
+      "response": {
+        "result": {},
+        "result_type": "close_channel"
+      }
+    },
+    {
+      "kind": "method",
+      "name": "list_peers",
+      "request": {
+        "method": "list_peers",
+        "params": {}
+      },
+      "response": {
+        "result": {
+          "peers": [
+            {
+              "address": "10.0.0.1:9735",
+              "alias": "ACINQ",
+              "connected": true,
+              "num_channels": 2,
+              "pubkey": "02abc..."
+            }
+          ]
+        },
+        "result_type": "list_peers"
+      }
+    },
+    {
+      "kind": "method",
+      "name": "connect_peer",
+      "request": {
+        "method": "connect_peer",
+        "params": {
+          "host": "10.0.0.1:9735",
+          "pubkey": "02abc..."
+        }
+      },
+      "response": {
+        "result": {},
+        "result_type": "connect_peer"
+      }
+    },
+    {
+      "kind": "method",
+      "name": "disconnect_peer",
+      "request": {
+        "method": "disconnect_peer",
+        "params": {
+          "pubkey": "02abc..."
+        }
+      },
+      "response": {
+        "result": {},
+        "result_type": "disconnect_peer"
+      }
+    },
+    {
+      "kind": "method",
+      "name": "get_channel_fees",
+      "request": {
+        "method": "get_channel_fees",
+        "params": {
+          "id": "abc123"
+        }
+      },
+      "response": {
+        "result": {
+          "fees": [
+            {
+              "base_fee": 1000,
+              "fee_rate": 1,
+              "id": "abc123",
+              "max_htlc": 500000000,
+              "min_htlc": 1000,
+              "peer_pubkey": "02abc...",
+              "short_channel_id": "800000x1x0"
+            }
+          ]
+        },
+        "result_type": "get_channel_fees"
+      }
+    },
+    {
+      "kind": "method",
+      "name": "set_channel_fees",
+      "request": {
+        "method": "set_channel_fees",
+        "params": {
+          "base_fee": 1000,
+          "fee_rate": 1,
+          "id": "abc123",
+          "max_htlc": 500000000,
+          "min_htlc": 1000
+        }
+      },
+      "response": {
+        "result": {},
+        "result_type": "set_channel_fees"
+      }
+    },
+    {
+      "kind": "method",
+      "name": "get_forwarding_history",
+      "request": {
+        "method": "get_forwarding_history",
+        "params": {
+          "from": 1693876973,
+          "limit": 50,
+          "offset": 0,
+          "until": 1703225078
+        }
+      },
+      "response": {
+        "result": {
+          "forwards": [
+            {
+              "fee_earned": 10,
+              "incoming_amount": 10000,
+              "incoming_channel_id": "abc123",
+              "outgoing_amount": 9990,
+              "outgoing_channel_id": "def456",
+              "settled_at": 1703225000
+            }
+          ]
+        },
+        "result_type": "get_forwarding_history"
+      }
+    },
+    {
+      "kind": "method",
+      "name": "get_pending_htlcs",
+      "request": {
+        "method": "get_pending_htlcs",
+        "params": {}
+      },
+      "response": {
+        "result": {
+          "htlcs": [
+            {
+              "amount": 10000,
+              "channel_id": "abc123",
+              "direction": "incoming",
+              "expiry_height": 800100,
+              "hash_lock": "abcdef..."
+            }
+          ]
+        },
+        "result_type": "get_pending_htlcs"
+      }
+    },
+    {
+      "kind": "method",
+      "name": "query_routes",
+      "request": {
+        "method": "query_routes",
+        "params": {
+          "amount": 100000,
+          "destination": "02abc...",
+          "max_routes": 3
+        }
+      },
+      "response": {
+        "result": {
+          "routes": [
+            {
+              "hops": [
+                {
+                  "expiry": 20,
+                  "fee": 50,
+                  "pubkey": "02abc...",
+                  "short_channel_id": "800000x1x0"
+                }
+              ],
+              "total_fee": 150,
+              "total_time_lock": 40
+            }
+          ]
+        },
+        "result_type": "query_routes"
+      }
+    },
+    {
+      "kind": "method",
+      "name": "list_network_nodes",
+      "request": {
+        "method": "list_network_nodes",
+        "params": {
+          "limit": 50,
+          "offset": 0
+        }
+      },
+      "response": {
+        "result": {
+          "nodes": [
+            {
+              "addresses": [
+                "10.0.0.1:9735"
+              ],
+              "alias": "ACINQ",
+              "color": "#3399ff",
+              "last_update": 1703225000,
+              "num_channels": 150,
+              "pubkey": "02abc...",
+              "total_capacity": 50000000000
+            }
+          ]
+        },
+        "result_type": "list_network_nodes"
+      }
+    },
+    {
+      "kind": "method",
+      "name": "get_network_stats",
+      "request": {
+        "method": "get_network_stats",
+        "params": {}
+      },
+      "response": {
+        "result": {
+          "avg_channel_size": 7692307692,
+          "max_channel_size": 1000000000000,
+          "num_channels": 65000,
+          "num_nodes": 15000,
+          "total_capacity": 500000000000000
+        },
+        "result_type": "get_network_stats"
+      }
+    },
+    {
+      "kind": "method",
+      "name": "get_network_node",
+      "request": {
+        "method": "get_network_node",
+        "params": {
+          "pubkey": "02abc..."
+        }
+      },
+      "response": {
+        "result": {
+          "addresses": [
+            "10.0.0.1:9735"
+          ],
+          "alias": "ACINQ",
+          "color": "#3399ff",
+          "features": {},
+          "last_update": 1703225000,
+          "num_channels": 150,
+          "pubkey": "02abc...",
+          "total_capacity": 50000000000
+        },
+        "result_type": "get_network_node"
+      }
+    },
+    {
+      "kind": "method",
+      "name": "get_network_channel",
+      "request": {
+        "method": "get_network_channel",
+        "params": {
+          "short_channel_id": "800000x1x0"
+        }
+      },
+      "response": {
+        "result": {
+          "capacity": 1000000000,
+          "node1_policy": {
+            "base_fee": 1000,
+            "disabled": false,
+            "fee_rate": 1,
+            "last_update": 1703225000,
+            "max_htlc": 500000000,
+            "min_htlc": 1000,
+            "time_lock_delta": 40
+          },
+          "node1_pubkey": "02abc...",
+          "node2_policy": {
+            "base_fee": 500,
+            "disabled": false,
+            "fee_rate": 2,
+            "last_update": 1703224000,
+            "max_htlc": 500000000,
+            "min_htlc": 1000,
+            "time_lock_delta": 40
+          },
+          "node2_pubkey": "03def...",
+          "short_channel_id": "800000x1x0"
+        },
+        "result_type": "get_network_channel"
+      }
+    },
+    {
+      "kind": "method",
+      "name": "sign_message",
+      "request": {
+        "method": "sign_message",
+        "params": {
+          "message": "I am node 02abc..."
+        }
+      },
+      "response": {
+        "result": {
+          "message": "I am node 02abc...",
+          "pubkey": "02abc...",
+          "signature": "d9tibmnic9t5..."
+        },
+        "result_type": "sign_message"
+      }
+    },
+    {
+      "kind": "notification",
+      "name": "channel_opened",
+      "notification": {
+        "notification": {
+          "capacity": 1000000,
+          "funding_txid": "abc123...",
+          "id": "abc123",
+          "is_private": false,
+          "local_balance": 1000000,
+          "peer_pubkey": "02abc...",
+          "remote_balance": 0,
+          "short_channel_id": "800000x1x0"
+        },
+        "notification_type": "channel_opened"
+      }
+    },
+    {
+      "kind": "notification",
+      "name": "channel_closed",
+      "notification": {
+        "notification": {
+          "capacity": 1000000,
+          "close_type": "cooperative",
+          "closing_txid": "def456...",
+          "id": "abc123",
+          "peer_pubkey": "02abc...",
+          "short_channel_id": "800000x1x0"
+        },
+        "notification_type": "channel_closed"
+      }
+    }
+  ]
+}

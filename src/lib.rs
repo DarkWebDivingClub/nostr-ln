@@ -20,11 +20,13 @@
 #![warn(missing_docs)]
 
 pub mod grant;
+pub mod nnc;
 pub mod limit;
 pub mod profile;
 pub mod subscription;
 
 pub use grant::{Grants, VerifiedGrant, GRANT_KIND};
+pub use nnc::{Method, NotificationType, Request, Response, Notification};
 pub use limit::{Bucket, RateLimitRule};
 pub use profile::{Denied, MethodAccessRule, UsageProfile, OTHERS};
 pub use subscription::{Subscriptions, SUBSCRIPTION_KIND};

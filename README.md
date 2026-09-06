@@ -22,6 +22,7 @@ it.**
 | `profile` | `UsageProfile`: `methods`, `control`, `notifications`, `quota` |
 | `limit` | `RateLimitRule` and its bucket — continuous refill, non-mutating checks |
 | `subscription` | kind `30199` — what a controller wants, intersected with what its grant permits |
+| `nnc` | NIP-XX as types: sixteen methods, two notifications, the request and response envelopes |
 
 Mission 13.2 adds the handler traits, the dispatch and the seven-step
 pipeline; 13.3 adds NIP-44 transport and the info events.
@@ -48,6 +49,22 @@ grant rather than accepting any.
   its grant says what it *may have*; delivery is the intersection. Narrow
   the grant and delivery stops at once, without the subscription event
   changing — the node does not own that event and cannot delete it.
+
+## The types are checked against the specification, not against themselves
+
+`vectors/nnc.json` is generated **from `XX.md`** by
+`examples/generate_nnc_vectors.rs`: every `jsonc` block under a method
+heading is an example the document asserts.
+
+```sh
+cargo run --example generate_nnc_vectors -- ~/git/nips/XX.md > vectors/nnc.json
+```
+
+That distinction earns its keep. A round-trip test encodes and decodes
+through the same code and cannot notice a disagreement with the
+specification — it was a vector that caught `channel_opened` carrying no
+`state` field while `list_channels` does, after a hand-written test had
+passed by using JSON invented to match the types.
 
 ## Testing
 
