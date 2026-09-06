@@ -11,6 +11,8 @@ use std::sync::Arc;
 
 use nostr::key::Keys;
 use nostr_ln::nnc::{methods::*, NncError};
+use nostr_ln::nwc::methods::*;
+use nostr_ln::nwc::WalletMethod;
 use nostr_ln::service::handler::Fut;
 use nostr_ln::service::transport::*;
 use nostr_ln::service::*;
@@ -31,27 +33,39 @@ impl ControlService for Node {
 
 struct Wallet;
 
-// **No `#[nostr_ln::service]` here**, and that is the finding rather than
-// an oversight. `WalletService` has one `call` entry point rather than a
-// function per method, so there is nothing in the impl block for the macro
-// to read — it would emit an empty list. An NWC handler therefore writes
-// `methods()` by hand, and carries the weaker guarantee that comes with a
-// list which can disagree with what it answers. Mission 18 removes the
-// difference by bringing NIP-47's types here.
+// The macro now works here, which is what mission 18.1 was for. Until it
+// landed, `WalletService` had one `call` entry point, so there was nothing
+// in the impl block for the macro to read and it emitted an **empty** list
+// with no error — a wallet that compiled and advertised nothing.
+#[nostr_ln::service]
 impl WalletService for Wallet {
-    fn methods(&self) -> &'static [&'static str] {
-        &["pay_bip321", "get_balance"]
+    fn get_balance<'a>(
+        &'a self,
+        _r: GetBalanceRequest,
+        _c: Caller<'a>,
+    ) -> Fut<'a, Result<GetBalanceResponse, NncError>> {
+        Box::pin(async move { Ok(GetBalanceResponse { balance: 0 }) })
     }
 
-    fn call<'a>(
+    fn pay_onchain<'a>(
         &'a self,
-        _m: &'a str,
-        _p: &'a Value,
+        _r: PayOnchainRequest,
         _c: Caller<'a>,
-    ) -> Fut<'a, Result<Value, NncError>> {
-        Box::pin(async move { Ok(Value::Null) })
+    ) -> Fut<'a, Result<PayOnchainResponse, NncError>> {
+        Box::pin(async move {
+            Ok(PayOnchainResponse { txid: "abc".into(), fee_sats: None })
+        })
     }
 }
+
+/// A wallet that implements nothing at all.
+///
+/// The case that used to fail silently: every `WalletService` produced an
+/// empty list, so this and `Wallet` were indistinguishable on the wire.
+struct EmptyWallet;
+
+#[nostr_ln::service]
+impl WalletService for EmptyWallet {}
 
 #[test]
 fn the_kinds_are_the_ones_the_spec_names() {
@@ -85,10 +99,51 @@ fn an_info_event_lists_exactly_what_the_handler_implements() {
     // second list to update.
     assert_eq!(Node.methods(), &["list_channels"]);
 
-    // The NWC side is hand-written, so this asserts only that it is what
-    // the handler declared — not that the handler can answer it. That gap
-    // is the deviation recorded in 13.2 and closed by mission 18.
-    assert_eq!(Wallet.methods(), &["pay_bip321", "get_balance"]);
+    // And now the NWC side is generated too, from the same impl block it
+    // answers from. A wallet cannot advertise what it does not implement.
+    assert_eq!(Wallet.methods(), &["get_balance", "pay_onchain"]);
+
+    // A wallet that implements nothing advertises nothing. This is the
+    // case that used to pass silently for *every* wallet: the macro found
+    // only `call`, excluded it, and emitted an empty list either way.
+    assert_eq!(EmptyWallet.methods(), &[] as &[&str]);
+}
+
+#[tokio::test]
+async fn a_wallet_answers_what_it_implements_and_refuses_the_rest() {
+    // The declaration is only worth having if it matches behaviour. This
+    // is the half a generated list cannot prove on its own.
+    let caller = Keys::generate().public_key();
+    let c = Caller { controller: &caller, request_id: None };
+
+    let ok = dispatch_wallet(
+        &Wallet,
+        &WalletMethod::GetBalance,
+        &serde_json::json!({}),
+        c,
+    )
+    .await;
+    assert!(ok.is_ok(), "declared and answered");
+
+    // Core method it did not implement.
+    let no = dispatch_wallet(
+        &Wallet,
+        &WalletMethod::PayInvoice,
+        &serde_json::json!({"invoice": "lnbc1"}),
+        c,
+    )
+    .await;
+    assert!(no.is_err(), "not declared, so NOT_IMPLEMENTED");
+
+    // A method from an extension we have not adopted.
+    let unknown = dispatch_wallet(
+        &Wallet,
+        &WalletMethod::Unknown("make_hold_invoice".into()),
+        &serde_json::json!({}),
+        c,
+    )
+    .await;
+    assert!(unknown.is_err(), "NWC-03 is not adopted; NOT_IMPLEMENTED, not unroutable");
 }
 
 #[tokio::test]

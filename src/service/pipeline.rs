@@ -145,7 +145,15 @@ pub async fn handle(
 
     // ── 6. execute ───────────────────────────────────────────────────
     let result = match handler {
-        Handler::Wallet(s) => super::dispatch::dispatch_wallet(*s, name, params, caller).await,
+        Handler::Wallet(s) => {
+            // Parsing is infallible: a method from an extension we have
+            // not adopted becomes `Unknown` and is answered
+            // NOT_IMPLEMENTED by the dispatch, rather than failing here
+            // with nowhere to put the error.
+            let wallet_method: crate::nwc::WalletMethod =
+                name.parse().expect("infallible");
+            super::dispatch::dispatch_wallet(*s, &wallet_method, params, caller).await
+        }
         Handler::Control(s) => super::dispatch::dispatch_control(*s, method, params, caller).await,
     };
 
@@ -178,9 +186,25 @@ fn validate(handler: &Handler<'_>, method: &Method, params: &Value) -> Result<()
             .map_err(|e| NncError::new(ErrorCode::Other, format!("bad params: {e}")))
     }
     if matches!(handler.protocol(), Protocol::Wallet) {
-        // NWC params are typed by the handler, which owns those types until
-        // mission 18 brings them here.
-        return Ok(());
+        // Validated here since 18.1 brought NWC's types into this crate.
+        // Before that a wallet's parameters reached the handler unchecked,
+        // so a malformed request failed at dispatch rather than at step 4
+        // — after authorization and rate limiting had already been spent
+        // on it.
+        use crate::nwc::methods as w;
+        let wallet_method: crate::nwc::WalletMethod =
+            method.as_str().parse().expect("infallible");
+        return match wallet_method {
+            crate::nwc::WalletMethod::PayInvoice => check::<w::PayInvoiceRequest>(params),
+            crate::nwc::WalletMethod::MakeInvoice => check::<w::MakeInvoiceRequest>(params),
+            crate::nwc::WalletMethod::LookupInvoice => check::<w::LookupInvoiceRequest>(params),
+            crate::nwc::WalletMethod::GetBalance => check::<w::GetBalanceRequest>(params),
+            crate::nwc::WalletMethod::GetInfo => check::<w::GetInfoRequest>(params),
+            crate::nwc::WalletMethod::PayOnchain => check::<w::PayOnchainRequest>(params),
+            // An extension we have not adopted. Dispatch answers
+            // NOT_IMPLEMENTED; there is no type here to check against.
+            crate::nwc::WalletMethod::Unknown(n) => Err(NncError::not_implemented(&n)),
+        };
     }
     match method {
         Method::ListChannels => check::<ListChannelsRequest>(params),

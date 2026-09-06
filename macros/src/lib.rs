@@ -26,20 +26,21 @@ use syn::{parse_macro_input, ImplItem, ItemImpl};
 /// forgetting this macro is a compile error rather than a node that
 /// advertises nothing and denies everything at runtime.
 ///
-/// `prepare` and `call` are excluded: a pipeline hook and a dispatch entry
-/// point, neither of which a controller can invoke.
+/// `prepare` is excluded: a pipeline hook, not a method a controller can
+/// invoke. `call` is excluded for the same reason and is now vestigial —
+/// no trait in this crate has one since 18.1 typed `WalletService`.
 ///
-/// # It cannot serve `WalletService`
+/// # It serves both traits
 ///
-/// `WalletService` has a single `call` entry point rather than one function
-/// per method, because NIP-47's types live elsewhere until mission 18. So
-/// there is nothing in the impl block to read, and this macro would emit an
-/// empty list. A `WalletService` writes `methods()` by hand and carries the
-/// weaker guarantee that comes with it — a list that can disagree with what
-/// the handler actually answers.
+/// `ControlService` has sixteen typed methods and `WalletService` has six,
+/// so both are read the same way and both get a generated list.
 ///
-/// `ControlService` has sixteen typed methods and does not have that
-/// problem, which is the difference mission 18 removes.
+/// It did not, until 18.1. `WalletService` had a single `call` entry point
+/// rather than one function per method, so there was nothing in the impl
+/// block to read and this macro emitted an **empty list with no error** —
+/// a wallet that compiled and advertised nothing. `tests/transport.rs`
+/// asserts the empty case now, because it is the one that used to pass
+/// silently for every wallet.
 #[proc_macro_attribute]
 pub fn service(_attr: TokenStream, item: TokenStream) -> TokenStream {
     let mut block = parse_macro_input!(item as ItemImpl);

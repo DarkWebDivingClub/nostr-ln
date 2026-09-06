@@ -19,6 +19,7 @@ use nostr::key::PublicKey;
 use serde_json::Value;
 
 use crate::nnc::{methods::*, NncError};
+use crate::nwc::methods::*;
 
 /// A boxed future, so the traits stay object-safe.
 pub type Fut<'a, T> = Pin<Box<dyn Future<Output = T> + Send + 'a>>;
@@ -78,7 +79,7 @@ pub struct Caller<'a> {
     pub request_id: Option<nostr::event::EventId>,
 }
 
-macro_rules! control_methods {
+macro_rules! typed_methods {
     ($( $(#[$m:meta])* $fn_name:ident($req:ty) -> $res:ty ),* $(,)?) => {
         $(
             $(#[$m])*
@@ -94,7 +95,7 @@ pub trait ControlService: Send + Sync {
     /// What this node implements. **Generated** by `#[nostr_ln::service]`.
     fn methods(&self) -> &'static [&'static str];
 
-    control_methods! {
+    typed_methods! {
         /// List this node's channels.
         list_channels(ListChannelsRequest) -> ListChannelsResponse,
         /// Open a channel. Acknowledged, not completed.
@@ -146,21 +147,40 @@ pub trait ControlService: Send + Sync {
 
 /// NIP-47. A node with a wallet.
 ///
-/// Typed over the NWC types in the `nostr` crate for now; mission 18 brings
-/// them into this crate and retires the fork they live in.
+/// Typed over [`crate::nwc`] — published NIP-47 core, plus the extensions
+/// this crate implements. A node implements the methods it serves and
+/// inherits `NOT_IMPLEMENTED` for the rest, exactly as
+/// [`ControlService`] works.
+///
+/// Until mission 18.1 this was a single `call(method, params, caller)`
+/// forwarding a string, and the cost was not only ugliness:
+/// `#[nostr_ln::service]` reads one entry per function in the impl block
+/// and excludes `call`, so it generated an **empty** method list with no
+/// error, and a wallet published kind `13194` advertising nothing.
 pub trait WalletService: Send + Sync {
     /// What this node implements. **Generated** by `#[nostr_ln::service]`.
     fn methods(&self) -> &'static [&'static str];
 
-    /// Answer an NWC method.
-    ///
-    /// A single entry point rather than one function per method, because
-    /// NIP-47's method set is not ours and changes without us — mission 18
-    /// replaces this with typed methods once the types live here.
-    fn call<'a>(&'a self, method: &'a str, params: &'a Value, caller: Caller<'a>)
-        -> Fut<'a, Result<Value, NncError>>;
+    typed_methods! {
+        /// Pay a BOLT11 invoice.
+        pay_invoice(PayInvoiceRequest) -> PayInvoiceResponse,
+        /// Create an invoice.
+        make_invoice(MakeInvoiceRequest) -> MakeInvoiceResponse,
+        /// Look one up.
+        lookup_invoice(LookupInvoiceRequest) -> LookupInvoiceResponse,
+        /// The wallet's balance.
+        get_balance(GetBalanceRequest) -> GetBalanceResponse,
+        /// What the wallet is and does.
+        get_info(GetInfoRequest) -> GetInfoResponse,
+        /// Send an on-chain payment. See `nwc-onchain.md`.
+        pay_onchain(PayOnchainRequest) -> PayOnchainResponse,
+    }
 
     /// As [`ControlService::prepare`].
+    ///
+    /// A wallet has more use for this than a node does: `pay_invoice` and
+    /// `pay_onchain` both spend, and the quota is checked against what
+    /// this returns **before** either runs.
     fn prepare<'a>(&'a self, _method: &'a str, _params: &'a Value, _caller: Caller<'a>)
         -> Fut<'a, Result<Prepared, NncError>>
     {

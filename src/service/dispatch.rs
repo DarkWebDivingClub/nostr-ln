@@ -7,6 +7,7 @@ use serde_json::Value;
 
 use super::handler::{Caller, ControlService, WalletService};
 use crate::nnc::{Method, NncError};
+use crate::nwc::WalletMethod;
 
 macro_rules! dispatch_arms {
     ($svc:ident, $method:ident, $params:ident, $caller:ident, $( $name:ident => $variant:ident ),* $(,)?) => {
@@ -21,6 +22,24 @@ macro_rules! dispatch_arms {
                 }
             )*
             Method::Unknown(name) => Err(NncError::not_implemented(name)),
+        }
+    };
+}
+
+macro_rules! wallet_dispatch_arms {
+    ($svc:ident, $method:ident, $params:ident, $caller:ident, $( $name:ident => $variant:ident ),* $(,)?) => {
+        match $method {
+            $(
+                WalletMethod::$variant => {
+                    let request = serde_json::from_value($params.clone())
+                        .map_err(|e| NncError::new(crate::nnc::ErrorCode::Other, format!("bad params: {e}")))?;
+                    let response = $svc.$name(request, $caller).await?;
+                    serde_json::to_value(response)
+                        .map_err(|e| NncError::new(crate::nnc::ErrorCode::Internal, e.to_string()))
+                }
+            )*
+            // A method from an extension we have not adopted.
+            WalletMethod::Unknown(name) => Err(NncError::not_implemented(name)),
         }
     };
 }
@@ -53,11 +72,22 @@ pub async fn dispatch_control(
 }
 
 /// Dispatch an NWC request to a [`WalletService`].
+///
+/// Exhaustive over [`WalletMethod`], as [`dispatch_control`] is over
+/// [`Method`]. Until 18.1 this forwarded a `&str` to a single `call`, so a
+/// method could be added to the specification and silently reach nothing.
 pub async fn dispatch_wallet(
     service: &dyn WalletService,
-    method: &str,
+    method: &WalletMethod,
     params: &Value,
     caller: Caller<'_>,
 ) -> Result<Value, NncError> {
-    service.call(method, params, caller).await
+    wallet_dispatch_arms!(service, method, params, caller,
+        pay_invoice => PayInvoice,
+        make_invoice => MakeInvoice,
+        lookup_invoice => LookupInvoice,
+        get_balance => GetBalance,
+        get_info => GetInfo,
+        pay_onchain => PayOnchain,
+    )
 }

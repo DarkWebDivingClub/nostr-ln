@@ -13,17 +13,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "aes"
-version = "0.8.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b169f7a6d4742236a0a00c541b845991d0ac43e546831af1249753ab4c3aa3a0"
-dependencies = [
- "cfg-if",
- "cipher",
- "cpufeatures",
-]
-
-[[package]]
 name = "arrayvec"
 version = "0.7.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -691,7 +680,6 @@ name = "nostr"
 version = "0.44.1"
 source = "git+https://github.com/dukeh3/nostr.git?rev=9ac9adc2#9ac9adc2fbd8cbdb0767d22f26b183d65bba71f4"
 dependencies = [
- "aes",
  "base64",
  "bech32",
  "bip39",
