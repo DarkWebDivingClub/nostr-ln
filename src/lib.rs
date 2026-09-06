@@ -21,6 +21,7 @@
 
 pub mod grant;
 pub mod nnc;
+pub mod nwc;
 pub mod service;
 
 /// Generates `methods()` from an impl block. See [`nostr_ln_macros::service`].

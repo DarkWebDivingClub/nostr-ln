@@ -1,0 +1,161 @@
+{
+  "note": "Generated from the NWC specifications by examples/generate_nwc_vectors.rs. Each entry is JSON a specification itself shows, except that the bare token `unixtimestamp` is substituted with 0 because it is a placeholder rather than a value.",
+  "sources": [
+    "/tmp/claude-1000/-home-rene-workspaces-x-h3-se-wks/e426c455-73c7-4c52-b771-d169065350ca/scratchpad/nip47-core.md",
+    "/home/rene/git/nips/nwc-onchain.md"
+  ],
+  "vectors": [
+    {
+      "kind": "method",
+      "name": "pay_invoice",
+      "request": {
+        "method": "pay_invoice",
+        "params": {
+          "amount": 123,
+          "invoice": "lnbc50n1...",
+          "metadata": {}
+        }
+      },
+      "response": {
+        "result": {
+          "fees_paid": 123,
+          "preimage": "0123456789abcdef..."
+        },
+        "result_type": "pay_invoice"
+      },
+      "source": "/tmp/claude-1000/-home-rene-workspaces-x-h3-se-wks/e426c455-73c7-4c52-b771-d169065350ca/scratchpad/nip47-core.md"
+    },
+    {
+      "kind": "method",
+      "name": "make_invoice",
+      "request": {
+        "method": "make_invoice",
+        "params": {
+          "amount": 123,
+          "description": "string",
+          "description_hash": "string",
+          "expiry": 213,
+          "metadata": {}
+        }
+      },
+      "response": {
+        "result": {
+          "amount": 123,
+          "created_at": 0,
+          "description": "string",
+          "description_hash": "string",
+          "expires_at": 0,
+          "fees_paid": 123,
+          "invoice": "string",
+          "metadata": {},
+          "payment_hash": "string",
+          "preimage": "string",
+          "state": "pending",
+          "type": "incoming"
+        },
+        "result_type": "make_invoice"
+      },
+      "source": "/tmp/claude-1000/-home-rene-workspaces-x-h3-se-wks/e426c455-73c7-4c52-b771-d169065350ca/scratchpad/nip47-core.md"
+    },
+    {
+      "kind": "method",
+      "name": "lookup_invoice",
+      "request": {
+        "method": "lookup_invoice",
+        "params": {
+          "invoice": "lnbc50n1...",
+          "payment_hash": "31afdf1.."
+        }
+      },
+      "response": {
+        "result": {
+          "amount": 123,
+          "created_at": 0,
+          "description": "string",
+          "description_hash": "string",
+          "expires_at": 0,
+          "fees_paid": 123,
+          "invoice": "string",
+          "metadata": {},
+          "payment_hash": "string",
+          "preimage": "string",
+          "settled_at": 0,
+          "state": "pending",
+          "type": "incoming"
+        },
+        "result_type": "lookup_invoice"
+      },
+      "source": "/tmp/claude-1000/-home-rene-workspaces-x-h3-se-wks/e426c455-73c7-4c52-b771-d169065350ca/scratchpad/nip47-core.md"
+    },
+    {
+      "kind": "method",
+      "name": "get_balance",
+      "request": {
+        "method": "get_balance",
+        "params": {}
+      },
+      "response": {
+        "result": {
+          "balance": 10000
+        },
+        "result_type": "get_balance"
+      },
+      "source": "/tmp/claude-1000/-home-rene-workspaces-x-h3-se-wks/e426c455-73c7-4c52-b771-d169065350ca/scratchpad/nip47-core.md"
+    },
+    {
+      "kind": "method",
+      "name": "get_info",
+      "request": {
+        "method": "get_info",
+        "params": {}
+      },
+      "response": {
+        "result": {
+          "alias": "string",
+          "block_hash": "hex string",
+          "block_height": 1,
+          "color": "hex string",
+          "extensions": [
+            "02",
+            "03",
+            "04",
+            "06",
+            "07",
+            "08"
+          ],
+          "methods": [
+            "pay_invoice",
+            "get_balance",
+            "make_invoice",
+            "lookup_invoice",
+            "get_info"
+          ],
+          "network": "string",
+          "pubkey": "hex string"
+        },
+        "result_type": "get_info"
+      },
+      "source": "/tmp/claude-1000/-home-rene-workspaces-x-h3-se-wks/e426c455-73c7-4c52-b771-d169065350ca/scratchpad/nip47-core.md"
+    },
+    {
+      "kind": "method",
+      "name": "pay_onchain",
+      "request": {
+        "method": "pay_onchain",
+        "params": {
+          "address": "bc1q...",
+          "amount_sats": 50000,
+          "feerate": 5
+        }
+      },
+      "response": {
+        "result": {
+          "fee_sats": 250,
+          "txid": "abc123..."
+        },
+        "result_type": "pay_onchain"
+      },
+      "source": "/home/rene/git/nips/nwc-onchain.md"
+    }
+  ]
+}
