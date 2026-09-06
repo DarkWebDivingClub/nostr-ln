@@ -19,4 +19,7 @@ pub use pipeline::{handle, Handler, Protocol};
 pub use state::Usage;
 
 #[cfg(feature = "transport")]
-pub use transport::{Notifier, Service};
+pub use transport::{
+    Notifier, Service, CONTROL_INFO_KIND, CONTROL_REQUEST_KIND, CONTROL_RESPONSE_KIND,
+    NOTIFICATION_KIND, WALLET_INFO_KIND, WALLET_REQUEST_KIND, WALLET_RESPONSE_KIND,
+};
