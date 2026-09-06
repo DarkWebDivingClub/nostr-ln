@@ -333,3 +333,32 @@ async fn a_wallet_grant_does_not_authorise_a_control_method() {
     assert_eq!(e.code, ErrorCode::Restricted, "spending does not make you an administrator");
     assert_eq!(stub.executes(), 0);
 }
+
+#[tokio::test]
+async fn a_refused_request_still_costs_its_rate() {
+    // The defect 13.4 found. Rate was charged at commit, so a controller
+    // whose request was refused — over quota, or calling a method that
+    // always fails — paid nothing and could retry for ever, provoking a
+    // `prepare` each time. On the faucet that is an RPC to `bitcoind` per
+    // attempt, from anyone holding a grant.
+    //
+    // A rate limit counts requests. A refused request was still a request,
+    // and the comment at step 5a already claimed this was true.
+    let profile = r#"{"control":{"list_channels":{"rate":{"amount":0,"per_secs":1,"max_capacity":1}}}}"#;
+    let mut w = world(profile);
+    let stub = Stub::default();
+    *stub.fail_execute.lock().unwrap() = Some(ErrorCode::Internal);
+
+    let first = run(&mut w, &stub, Method::ListChannels, json!({}), 0).await;
+    assert!(first.is_err(), "the stub was told to fail");
+    assert_eq!(stub.executes(), 1);
+
+    let second = run(&mut w, &stub, Method::ListChannels, json!({}), 0).await.unwrap_err();
+    assert_eq!(
+        second.code,
+        ErrorCode::RateLimited,
+        "a failed request must still consume its rate, or the limit protects nothing"
+    );
+    assert_eq!(stub.executes(), 1, "and the handler is not reached a second time");
+    assert_eq!(stub.prepares(), 1, "nor is prepare, which is the work being protected");
+}

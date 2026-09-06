@@ -106,8 +106,20 @@ pub async fn handle(
     validate(handler, method, params)?;
 
     // ── 5a. rate ─────────────────────────────────────────────────────
-    // First, so that preparing — which makes the node find a route or pick
-    // a feerate — cannot be provoked for free.
+    // First, so that preparing — which makes the node find a route, pick a
+    // feerate, or ask `bitcoind` whether it can cover fees — cannot be
+    // provoked for free.
+    //
+    // **Charged here, not at commit.** A rate limit counts *requests*, and
+    // a request that is refused still cost a relay round trip and a
+    // prepare. Charging it only on success means a controller who is over
+    // quota, or asking for something that always fails, can hammer the
+    // service indefinitely at no cost to their own allowance — which is
+    // precisely what this limit exists to prevent, and what the comment
+    // above claims it does.
+    //
+    // The quota is different and stays at commit: it counts money, and a
+    // payment that did not happen moved none.
     if let Some(ref rule) = rule {
         if !usage.rate_allows(controller, name, rule, now) {
             return Err(NncError::new(
@@ -115,6 +127,7 @@ pub async fn handle(
                 format!("{name} is rate limited for this controller"),
             ));
         }
+        usage.charge_rate(controller, name, rule, now);
     }
 
     // ── 5b. prepare ──────────────────────────────────────────────────
@@ -158,14 +171,12 @@ pub async fn handle(
     };
 
     // ── 7. commit ────────────────────────────────────────────────────
-    // Only on success, and the quoted cost — the number that was checked.
-    // A refused or failed request charges nothing, so a caller is never
-    // billed for something they did not receive.
+    // The quoted cost — the number that was checked — and only on success,
+    // so a caller is never billed money for something they did not
+    // receive. The rate was charged at 5a, because it counts requests
+    // rather than money.
     match result {
         Ok(value) => {
-            if let Some(ref rule) = rule {
-                usage.charge_rate(controller, name, rule, now);
-            }
             if cost > 0 {
                 if let Some(quota) = profile.quota.as_ref() {
                     usage.charge_quota(controller, cost, quota, now);
