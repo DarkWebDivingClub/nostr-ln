@@ -17,11 +17,19 @@ pub mod error;
 pub mod methods;
 pub mod method;
 pub mod types;
+pub mod uri;
+
+#[cfg(feature = "client")]
+pub mod client;
 
 pub use error::{ErrorCode, NncError};
 pub use method::Method;
 pub use methods::*;
 pub use types::*;
+pub use uri::{NodeControlUri, UriError};
+
+#[cfg(feature = "client")]
+pub use client::{NostrNodeControl, Pending};
 
 /// A notification type. **Not a [`Method`]** — these cannot be called.
 ///

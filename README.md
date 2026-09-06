@@ -23,6 +23,7 @@ it.**
 | `limit` | `RateLimitRule` and its bucket — continuous refill, non-mutating checks |
 | `subscription` | kind `30199` — what a controller wants, intersected with what its grant permits |
 | `nnc` | NIP-XX as types: sixteen methods, two notifications, the request and response envelopes |
+| `nnc::client` | `NostrNodeControl` — one thin function per method. Behind the `client` feature |
 
 Mission 13.2 adds the handler traits, the dispatch and the seven-step
 pipeline; 13.3 adds NIP-44 transport and the info events.
@@ -49,6 +50,44 @@ grant rather than accepting any.
   its grant says what it *may have*; delivery is the intersection. Narrow
   the grant and delivery stops at once, without the subscription event
   changing — the node does not own that event and cannot delete it.
+
+## The client
+
+```rust
+let nnc = NostrNodeControl::new(uri, signer);      // a signer, not Keys
+let channels = nnc.list_channels().await?;
+```
+
+**Two arguments where NWC takes one.** An NWC URI carries a secret the
+wallet service generated, and holding it *is* the permission. An NNC URI
+carries only the service pubkey and relays — the client signs with **its
+own** key, and the owner publishes a grant for it. A URI is not a
+credential here, which is why `UNAUTHORIZED` says so rather than reporting
+a bare code.
+
+Fourteen methods are three lines each, as `nwc`'s are. The two asynchronous
+ones get **two functions apiece**:
+
+```rust
+let pending = nnc.open_channel(req).await?;   // acknowledged
+let opened  = pending.await?;                 // confirmed, later
+
+nnc.open_channel_without_notification(req).await?;   // notify: false
+```
+
+Not one function with a flag returning `Option`: the caller passes `notify`
+at the call site, so the compiler already knows, and an `Option` it must
+unwrap for a case that cannot happen is a downgrade. **Dropping the handle
+is not the same as `notify: false`** — the node still sends an event nobody
+reads — which is why fire-and-forget has its own function rather than
+"just don't await".
+
+`Pending` is owned and `Send + 'static`, so it can be spawned or stored: a
+dashboard cannot block a request thread for six blocks. Dropping it
+unsubscribes.
+
+The `client` feature is off by default, so a consumer wanting only the
+types and the access layer does not pull a relay stack.
 
 ## The types are checked against the specification, not against themselves
 
