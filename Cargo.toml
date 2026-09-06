@@ -19,16 +19,17 @@ tracing = "0.1"
 
 nostr-sdk = { git = "https://github.com/dukeh3/nostr.git", rev = "9ac9adc2", optional = true }
 tokio = { version = "1", features = ["time", "macros"], optional = true }
+futures = { version = "0.3", default-features = false, optional = true }
 
 [features]
 default = []
 # The NNC client. Off by default so a consumer wanting only the types and
 # the access layer does not pull a relay stack.
-client = ["dep:nostr-sdk", "dep:tokio"]
+client = ["dep:nostr-sdk", "dep:tokio", "dep:futures"]
 # The service transport: relay I/O, NIP-44, info events. Off by default so
 # a consumer wanting only the types and the access layer pulls no relay
 # stack.
-transport = ["dep:nostr-sdk", "dep:tokio"]
+transport = ["dep:nostr-sdk", "dep:tokio", "dep:futures"]
 
 [dev-dependencies]
 serde_json = "1"

@@ -38,6 +38,12 @@ use crate::nnc::Notification;
 pub struct Pending<T> {
     client: Client,
     signer: Arc<dyn NostrSigner>,
+    /// Taken when the command was **sent**, not when this is awaited.
+    ///
+    /// The client broadcasts what it receives, so a receiver taken at
+    /// `wait` time misses anything that arrived in between — which is the
+    /// whole window this handle exists to span.
+    events: super::Notifications,
     subscription: SubscriptionId,
     request_id: EventId,
     service: PublicKey,
@@ -49,6 +55,7 @@ impl<T> Pending<T> {
     pub(crate) fn new(
         client: Client,
         signer: Arc<dyn NostrSigner>,
+        events: super::Notifications,
         subscription: SubscriptionId,
         request_id: EventId,
         service: PublicKey,
@@ -57,6 +64,7 @@ impl<T> Pending<T> {
         Self {
             client,
             signer,
+            events,
             subscription,
             request_id,
             service,
@@ -86,9 +94,9 @@ impl<T> Pending<T> {
 }
 
 impl<T: DeserializeOwned + Send> Pending<T> {
-    async fn wait(self) -> Result<T, Error> {
+    async fn wait(mut self) -> Result<T, Error> {
         let deadline = tokio::time::Instant::now() + self.timeout;
-        let mut notifications = self.client.notifications();
+        let notifications = &mut self.events;
 
         let outcome = loop {
             let left = deadline.saturating_duration_since(tokio::time::Instant::now());

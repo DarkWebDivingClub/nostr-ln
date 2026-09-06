@@ -34,6 +34,14 @@ pub const REQUEST_KIND: u16 = 23198;
 pub const RESPONSE_KIND: u16 = 23199;
 /// Kind of an NNC notification.
 pub const NOTIFICATION_KIND: u16 = 23200;
+
+/// The client's event stream, taken before a send rather than after.
+///
+/// It is a broadcast: a receiver taken after the event was delivered never
+/// sees it. Naming the type keeps that ordering explicit at every call
+/// site rather than buried in whichever function happens to await.
+pub(crate) type Notifications =
+    std::pin::Pin<Box<dyn futures::Stream<Item = ClientNotification> + Send>>;
 /// Kind of a subscription.
 pub const SUBSCRIPTION_KIND: u16 = 30199;
 
@@ -190,17 +198,26 @@ impl NostrNodeControl {
             .map_err(|e| Error::Relay(e.to_string()))?;
         let request_id = event.id;
 
+        // Before the send, not after. The client's notification stream is
+        // a broadcast: a receiver taken later never sees what was already
+        // delivered, so an answer that beats this line is lost and the
+        // call times out with nothing to show for it.
+        let notifications = self.client.notifications();
+
         self.client
             .send_event(&event)
             .await
             .map_err(|e| Error::Relay(e.to_string()))?;
 
-        self.await_response(request_id).await
+        self.await_response(request_id, notifications).await
     }
 
-    async fn await_response(&self, request_id: EventId) -> Result<Response, Error> {
+    pub(crate) async fn await_response(
+        &self,
+        request_id: EventId,
+        mut notifications: Notifications,
+    ) -> Result<Response, Error> {
         let deadline = tokio::time::Instant::now() + self.timeout;
-        let mut notifications = self.client.notifications();
         loop {
             let left = deadline.saturating_duration_since(tokio::time::Instant::now());
             if left.is_zero() {

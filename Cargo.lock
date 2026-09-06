@@ -734,6 +734,7 @@ dependencies = [
 name = "nostr-ln"
 version = "0.1.0"
 dependencies = [
+ "futures",
  "nostr",
  "nostr-ln-macros",
  "nostr-sdk",

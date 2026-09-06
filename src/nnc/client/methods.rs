@@ -287,6 +287,19 @@ impl NostrNodeControl {
             .await
             .map_err(|e| Error::Relay(e.to_string()))?;
 
+        // Two streams, both taken before the send.
+        //
+        // The relay subscriptions above are not enough: the client
+        // broadcasts what it receives, and a receiver taken later never
+        // sees what was already delivered. The outcome stream in
+        // particular has to exist now rather than when the handle is
+        // awaited, or everything the handle is *for* — hold it, spawn it,
+        // await it later — silently loses the outcome. Two concurrent
+        // opens are the case that finds this: the second command's round
+        // trip is the window in which the first one's outcome vanishes.
+        let responses = self.client.notifications();
+        let outcomes = self.client.notifications();
+
         self.client
             .send_event(&event)
             .await
@@ -294,7 +307,7 @@ impl NostrNodeControl {
 
         // The acknowledgement first — a refusal here means no outcome is
         // coming, so the handle would wait forever.
-        let response = self.await_response(request_id).await?;
+        let response = self.await_response(request_id, responses).await?;
         if let Some(e) = response.error {
             return Err(Error::Refused(e));
         }
@@ -302,6 +315,7 @@ impl NostrNodeControl {
         Ok(Pending::new(
             self.client.clone(),
             self.signer.clone(),
+            outcomes,
             outcome_sub.val,
             request_id,
             self.uri.service,
