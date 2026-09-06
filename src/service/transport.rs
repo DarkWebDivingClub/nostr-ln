@@ -210,6 +210,14 @@ impl Notifier {
     /// Pass `None` for something nobody asked for — a peer force-closing —
     /// which is [`announce`](Self::announce).
     ///
+    /// **Pass `None` for `"notify": false` as well, and still call this.**
+    /// That flag declines the *correlated result*; it does not unsubscribe.
+    /// A controller that set it and holds a subscription still receives the
+    /// notification, with an `a` tag and no `e` tag. Skipping the call
+    /// entirely — the obvious reading of "suppress the notification", and
+    /// what this crate's own dummy did until an e2e scenario caught it —
+    /// silently revokes a subscription the controller never withdrew.
+    ///
     /// Returns how many controllers it reached.
     pub async fn deliver(
         &self,
