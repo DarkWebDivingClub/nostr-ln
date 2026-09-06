@@ -126,6 +126,7 @@ async fn run(
         &w.grants,
         &mut w.usage,
         &w.controller.public_key(),
+        None,
         &method,
         &params,
         now,
@@ -173,6 +174,7 @@ async fn a_caller_with_no_grant_is_unauthorized_and_learns_nothing_else() {
     let handler = Handler::Control(&stub);
     let e = nostr_ln::service::handle(
         &handler, &w.grants, &mut w.usage, &stranger.public_key(),
+        None,
         &Method::ListChannels, &json!({}), 0,
     )
     .await
@@ -193,6 +195,7 @@ async fn authorization_precedes_validation() {
     let handler = Handler::Control(&stub);
     let e = nostr_ln::service::handle(
         &handler, &w.grants, &mut w.usage, &stranger.public_key(),
+        None,
         &Method::OpenChannel, &json!({"nonsense": true}), 0,
     )
     .await

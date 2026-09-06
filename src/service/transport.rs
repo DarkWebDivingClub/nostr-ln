@@ -394,6 +394,7 @@ impl Service {
             grants,
             usage,
             &event.pubkey,
+            Some(event.id),
             &request.method,
             &request.params,
             now,

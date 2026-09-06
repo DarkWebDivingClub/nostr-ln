@@ -60,11 +60,22 @@ impl std::fmt::Debug for Prepared {
     }
 }
 
-/// Who is asking.
+/// Who is asking, and what they asked.
 #[derive(Debug, Clone, Copy)]
 pub struct Caller<'a> {
     /// The controller's pubkey — the key a grant names.
     pub controller: &'a PublicKey,
+    /// The id of the request event.
+    ///
+    /// A handler needs this to tag the deferred result of an asynchronous
+    /// command: NIP-XX makes the `e` tag a MUST there, and it is what lets
+    /// a client tie an outcome to the command that caused it — two
+    /// `open_channel` commands to the same peer are otherwise
+    /// indistinguishable.
+    ///
+    /// `None` when the pipeline is driven without a transport, as in unit
+    /// tests.
+    pub request_id: Option<nostr::event::EventId>,
 }
 
 macro_rules! control_methods {

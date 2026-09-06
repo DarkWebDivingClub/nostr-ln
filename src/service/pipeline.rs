@@ -75,11 +75,12 @@ pub async fn handle(
     grants: &Grants,
     usage: &mut Usage,
     controller: &PublicKey,
+    request_id: Option<nostr::event::EventId>,
     method: &Method,
     params: &Value,
     now: u64,
 ) -> Result<Value, NncError> {
-    let caller = Caller { controller };
+    let caller = Caller { controller, request_id };
     let name = method.as_str();
 
     // ── 2. resolve ───────────────────────────────────────────────────
