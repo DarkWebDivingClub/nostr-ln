@@ -1,10 +1,14 @@
-//! NIP-XX error codes.
+//! Error codes, shared by NIP-XX and NIP-47.
+//!
+//! One enum because the response envelope is one envelope. The two
+//! specifications overlap on most of the list and each names a few of its
+//! own, which is marked below.
 
 use std::fmt;
 
 use serde::{Deserialize, Serialize};
 
-/// The error codes NIP-XX names.
+/// The error codes the specifications name.
 ///
 /// `Unknown` exists for the same reason [`super::Method::Unknown`] does: a
 /// code invented after this was written must be reportable, not a parse
@@ -35,6 +39,24 @@ pub enum ErrorCode {
     /// A peer could not be reached.
     #[serde(rename = "CONNECTION_FAILED")]
     ConnectionFailed,
+    /// The wallet does not have enough funds to cover the payment or a fee
+    /// reserve. **NIP-47.**
+    #[serde(rename = "INSUFFICIENT_BALANCE")]
+    InsufficientBalance,
+    /// The payment failed — a timeout, no route, or a broadcast refused.
+    /// **NIP-47**, and named by `nwc-onchain.md`.
+    #[serde(rename = "PAYMENT_FAILED")]
+    PaymentFailed,
+    /// The encryption of the request is not supported. **NIP-47.**
+    #[serde(rename = "UNSUPPORTED_ENCRYPTION")]
+    UnsupportedEncryption,
+    /// A parameter is invalid. **`nwc-onchain.md`.**
+    #[serde(rename = "BAD_REQUEST")]
+    BadRequest,
+    /// The address or instruction is for a different Bitcoin network.
+    /// **`nwc-onchain.md`.**
+    #[serde(rename = "UNSUPPORTED_NETWORK")]
+    UnsupportedNetwork,
     /// An internal error.
     #[serde(rename = "INTERNAL")]
     Internal,
@@ -57,6 +79,11 @@ impl fmt::Display for ErrorCode {
             Self::NotFound => "NOT_FOUND",
             Self::ChannelFailed => "CHANNEL_FAILED",
             Self::ConnectionFailed => "CONNECTION_FAILED",
+            Self::InsufficientBalance => "INSUFFICIENT_BALANCE",
+            Self::PaymentFailed => "PAYMENT_FAILED",
+            Self::UnsupportedEncryption => "UNSUPPORTED_ENCRYPTION",
+            Self::BadRequest => "BAD_REQUEST",
+            Self::UnsupportedNetwork => "UNSUPPORTED_NETWORK",
             Self::Internal => "INTERNAL",
             Self::Other => "OTHER",
             Self::Unknown(s) => s,

@@ -534,7 +534,7 @@ impl Service {
                 return Response::err(
                     Method::Unknown(String::new()),
                     NncError::new(
-                        ErrorCode::Unknown("UNSUPPORTED_ENCRYPTION".into()),
+                        ErrorCode::UnsupportedEncryption,
                         "this service speaks NIP-44 only",
                     ),
                 )

@@ -140,3 +140,34 @@ fn get_balance_has_one_field_as_published_core_defines_it() {
         "published core's get_balance has exactly one field"
     );
 }
+
+#[test]
+fn the_error_codes_the_specifications_name_have_variants() {
+    use nostr_ln::nnc::ErrorCode;
+    // Published NIP-47 core's list, plus the two nwc-onchain.md adds.
+    // A code spelled as `Unknown("...")` round-trips but cannot be matched
+    // on, which is how UNSUPPORTED_ENCRYPTION was written until 18.1's
+    // first consumer needed the others.
+    for code in [
+        "RATE_LIMITED",
+        "NOT_IMPLEMENTED",
+        "INSUFFICIENT_BALANCE",
+        "QUOTA_EXCEEDED",
+        "RESTRICTED",
+        "UNAUTHORIZED",
+        "INTERNAL",
+        "UNSUPPORTED_ENCRYPTION",
+        "OTHER",
+        "PAYMENT_FAILED",
+        "BAD_REQUEST",
+        "UNSUPPORTED_NETWORK",
+    ] {
+        let parsed: ErrorCode =
+            serde_json::from_value(serde_json::json!(code)).expect("decodes");
+        assert!(
+            !matches!(parsed, ErrorCode::Unknown(_)),
+            "{code} is named by a specification we implement and has no variant"
+        );
+        assert_eq!(parsed.to_string(), code, "{code} does not round-trip");
+    }
+}
