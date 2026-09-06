@@ -47,7 +47,7 @@ struct Wanted {
 }
 
 /// What each controller has asked to be told about.
-#[derive(Debug, Default)]
+#[derive(Debug, Clone, Default)]
 pub struct Subscriptions {
     node: Option<PublicKey>,
     by_controller: HashMap<String, Wanted>,

@@ -11,7 +11,7 @@
 //!                         // 23194 answered NOT_IMPLEMENTED
 //! ```
 
-use std::sync::Arc;
+use std::sync::{Arc, RwLock};
 
 use nostr::key::PublicKey;
 use nostr::signer::{IntoNostrSigner, NostrSigner};
@@ -64,6 +64,21 @@ impl std::fmt::Display for Error {
 
 impl std::error::Error for Error {}
 
+/// Who is currently entitled to what, for the subscription route.
+///
+/// A **mirror**, not the authority: `run` owns the grants and
+/// subscriptions it serves requests from, and copies them here whenever
+/// they change. That is deliberate. The request path holds a `&Grants`
+/// across the handler's execution, so if this were the authority a handler
+/// that announced something would be waiting on a lock its own caller
+/// holds. Mirroring costs a clone on a grant event — rare — and makes that
+/// deadlock unrepresentable.
+#[derive(Debug, Default)]
+struct Delivery {
+    grants: Grants,
+    subs: Subscriptions,
+}
+
 /// A node service.
 pub struct Service {
     signer: Arc<dyn NostrSigner>,
@@ -72,6 +87,7 @@ pub struct Service {
     owners: Vec<PublicKey>,
     wallet: Option<Arc<dyn WalletService>>,
     control: Option<Arc<dyn ControlService>>,
+    delivery: Arc<RwLock<Delivery>>,
 }
 
 /// Sends notifications on a node service's behalf.
@@ -87,6 +103,7 @@ pub struct Service {
 pub struct Notifier {
     client: Client,
     signer: Arc<dyn NostrSigner>,
+    delivery: Arc<RwLock<Delivery>>,
 }
 
 impl Notifier {
@@ -117,6 +134,36 @@ impl Notifier {
         self.client.send_event_builder(event).await.map_err(relay_err)?;
         Ok(())
     }
+
+    /// Send a notification to everyone subscribed to its type.
+    ///
+    /// This is the other notification route: it follows from no request, so
+    /// it carries **no** `e` tag, and it is addressed to whoever has both
+    /// subscribed to the type and been granted it — the intersection, never
+    /// one or the other. A node calls this when something happens to it
+    /// rather than when somebody asks.
+    ///
+    /// Returns how many controllers it reached. Zero is normal and not an
+    /// error: nobody is subscribed.
+    pub async fn announce(&self, notification: &Notification) -> Result<usize, Error> {
+        let ty = notification.notification_type.as_str().to_string();
+        // Computed under the lock and released before any send, so a
+        // handler announcing from inside a request cannot stall the loop.
+        let to: Vec<PublicKey> = {
+            let d = self.delivery.read().unwrap_or_else(|e| e.into_inner());
+            d.subs.recipients(&ty, &d.grants)
+        };
+        let mut sent = 0;
+        for controller in &to {
+            // One failed recipient must not silence the rest.
+            match self.notify(controller, notification, None).await {
+                Ok(()) => sent += 1,
+                Err(e) => tracing::warn!("could not announce {ty} to {controller}: {e}"),
+            }
+        }
+        tracing::debug!("announced {ty} to {sent} of {} subscriber(s)", to.len());
+        Ok(sent)
+    }
 }
 
 impl Service {
@@ -133,7 +180,15 @@ impl Service {
     ) -> Self {
         let signer = signer.into_nostr_signer();
         let client = Client::builder().signer(signer.clone()).build();
-        Self { signer, client, relays, owners, wallet: None, control: None }
+        Self {
+            signer,
+            client,
+            relays,
+            owners,
+            wallet: None,
+            control: None,
+            delivery: Arc::new(RwLock::new(Delivery::default())),
+        }
     }
 
     /// A handle for sending notifications.
@@ -142,7 +197,11 @@ impl Service {
     /// That is the constructor shape the epic asked 13.2 to leave room for:
     /// a handler is constructed with what it needs rather than bare.
     pub fn notifier(&self) -> Notifier {
-        Notifier { client: self.client.clone(), signer: self.signer.clone() }
+        Notifier {
+            client: self.client.clone(),
+            signer: self.signer.clone(),
+            delivery: self.delivery.clone(),
+        }
     }
 
     /// Serve NWC. Publishes kind 13194 and answers 23194.
@@ -176,6 +235,7 @@ impl Service {
         // The state a reconnect must restore. Both kinds are addressable,
         // so current state is one query and no history is needed.
         self.refresh(&client, me, &mut grants, &mut subs).await;
+        self.mirror(&grants, &subs);
 
         // The SDK's notification stream carries events, relay messages and
         // shutdown — no relay status. So reconnection is observed by
@@ -214,6 +274,7 @@ impl Service {
                         );
                         let _ = self.subscribe(&client, me).await;
                         self.refresh(&client, me, &mut grants, &mut subs).await;
+                        self.mirror(&grants, &subs);
                     }
                     connected = now_connected;
                 }
@@ -231,6 +292,17 @@ impl Service {
             .filter(|(_, r)| r.status().is_connected())
             .map(|(url, _)| url.to_string())
             .collect()
+    }
+
+    /// Copy the current entitlements to where a [`Notifier`] can read them.
+    ///
+    /// Called after anything that changes who may receive what — including
+    /// a revocation, which has to end the subscription route as well as the
+    /// request route.
+    fn mirror(&self, grants: &Grants, subs: &Subscriptions) {
+        let mut d = self.delivery.write().unwrap_or_else(|e| e.into_inner());
+        d.grants = grants.clone();
+        d.subs = subs.clone();
     }
 
     /// Read current grants and subscriptions.
@@ -318,9 +390,13 @@ impl Service {
                     Ok(c) => tracing::info!("applied a grant for {c}"),
                     Err(e) => tracing::debug!("ignored a grant: {e:?}"),
                 }
+                // A revocation must end the subscription route too, not
+                // only the request route — delivery is the intersection.
+                self.mirror(grants, subs);
             }
             SUBSCRIPTION_KIND => {
                 let _ = subs.apply(event, grants);
+                self.mirror(grants, subs);
             }
             WALLET_REQUEST_KIND | CONTROL_REQUEST_KIND => {
                 let response = self.answer(event, kind, grants, usage).await;

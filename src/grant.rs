@@ -76,7 +76,7 @@ pub enum Rejected {
 }
 
 /// The grants a node service has applied, by controller pubkey.
-#[derive(Debug, Default)]
+#[derive(Debug, Clone, Default)]
 pub struct Grants {
     node: Option<PublicKey>,
     owners: Vec<PublicKey>,
