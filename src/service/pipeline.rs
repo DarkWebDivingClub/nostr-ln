@@ -225,6 +225,11 @@ fn validate(handler: &Handler<'_>, method: &Method, params: &Value) -> Result<()
             crate::nwc::WalletMethod::ListInvoices => check::<w::ListInvoicesRequest>(params),
             crate::nwc::WalletMethod::PayBip321 => check::<w::PayBip321Request>(params),
             crate::nwc::WalletMethod::MakeBip321 => check::<w::MakeBip321Request>(params),
+            crate::nwc::WalletMethod::MakeOffer => check::<w::MakeOfferRequest>(params),
+            crate::nwc::WalletMethod::LookupPayment => check::<w::LookupPaymentRequest>(params),
+            crate::nwc::WalletMethod::PayOffer => check::<w::PayOfferRequest>(params),
+            crate::nwc::WalletMethod::ListOffers => check::<w::ListOffersRequest>(params),
+            crate::nwc::WalletMethod::DisableOffer => check::<w::DisableOfferRequest>(params),
             // An extension we have not adopted. Dispatch answers
             // NOT_IMPLEMENTED; there is no type here to check against.
             crate::nwc::WalletMethod::Unknown(n) => Err(NncError::not_implemented(&n)),

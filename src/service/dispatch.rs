@@ -102,5 +102,10 @@ pub async fn dispatch_wallet(
         list_invoices => ListInvoices,
         pay_bip321 => PayBip321,
         make_bip321 => MakeBip321,
+        make_offer => MakeOffer,
+        lookup_payment => LookupPayment,
+        pay_offer => PayOffer,
+        list_offers => ListOffers,
+        disable_offer => DisableOffer,
     )
 }

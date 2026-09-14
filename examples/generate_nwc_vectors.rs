@@ -130,8 +130,22 @@ fn sections(doc: &str) -> Vec<(String, String)> {
 }
 
 /// The first fenced block after a label, as JSON.
+/// The first fenced block under a line introducing `label`.
+///
+/// The label is matched as a **prefix of a line ending in a colon**, not as
+/// an exact string. NWC-12 writes `Request by offer ID and payment hash:`,
+/// and an exact match skipped it — so a request the document plainly shows
+/// was never decoded by anything.
 fn labelled_block(body: &str, label: &str) -> Option<serde_json::Value> {
-    let after = body.split(label).nth(1)?;
+    // Callers pass `"Request:"`; the colon is the terminator, not part of
+    // the word, or `Request by offer ID...:` would not match.
+    let label = label.trim_end_matches(':');
+    let start = body.lines().enumerate().find_map(|(i, l)| {
+        let l = l.trim();
+        (l.starts_with(label) && l.ends_with(':')).then_some(i)
+    })?;
+    let after: String = body.lines().skip(start + 1).collect::<Vec<_>>().join("\n");
+    let after = after.as_str();
     let fenced = after.split("```").nth(1)?;
     let inner = ["yaml", "jsonc", "json"]
         .iter()

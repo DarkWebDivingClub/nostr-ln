@@ -200,6 +200,16 @@ pub trait WalletService: Send + Sync {
         pay_bip321(PayBip321Request) -> PayBip321Response,
         /// Generate a BIP-321 URI. See `nwc-bip321.md`.
         make_bip321(MakeBip321Request) -> MakeBip321Response,
+        /// Create a BOLT12 offer. NWC-12.
+        make_offer(MakeOfferRequest) -> MakeOfferResponse,
+        /// Look up one payment record. NWC-09.
+        lookup_payment(LookupPaymentRequest) -> LookupPaymentResponse,
+        /// Pay a BOLT12 offer. See `nwc-offers.md`.
+        pay_offer(PayOfferRequest) -> PayOfferResponse,
+        /// Offers this wallet created. See `nwc-offers.md`.
+        list_offers(ListOffersRequest) -> ListOffersResponse,
+        /// Stop an offer accepting payments. See `nwc-offers.md`.
+        disable_offer(DisableOfferRequest) -> DisableOfferResponse,
     }
 
     /// As [`ControlService::prepare`].

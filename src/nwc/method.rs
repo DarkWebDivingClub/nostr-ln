@@ -84,13 +84,27 @@ pub enum WalletMethod {
     /// Generate a BIP-321 URI. See `nwc-bip321.md`.
     MakeBip321,
 
+    // ── NWC-12, BOLT12 Offers; NWC-09, Payment Lookup ────────────────
+    /// Create a BOLT12 offer. NWC-12.
+    MakeOffer,
+    /// Look up one payment record. NWC-09.
+    LookupPayment,
+
+    // ── `nwc-offers.md`, what NWC-12 does not cover ──────────────────
+    /// Pay a BOLT12 offer. See `nwc-offers.md`.
+    PayOffer,
+    /// Offers this wallet created. See `nwc-offers.md`.
+    ListOffers,
+    /// Stop an offer accepting payments. See `nwc-offers.md`.
+    DisableOffer,
+
     /// A method this implementation does not know.
     Unknown(String),
 }
 
 impl WalletMethod {
     /// Every method this crate knows. Excludes [`WalletMethod::Unknown`].
-    pub const ALL: [WalletMethod; 19] = [
+    pub const ALL: [WalletMethod; 24] = [
         WalletMethod::PayInvoice,
         WalletMethod::MakeInvoice,
         WalletMethod::LookupInvoice,
@@ -110,6 +124,11 @@ impl WalletMethod {
         WalletMethod::ListInvoices,
         WalletMethod::PayBip321,
         WalletMethod::MakeBip321,
+        WalletMethod::MakeOffer,
+        WalletMethod::LookupPayment,
+        WalletMethod::PayOffer,
+        WalletMethod::ListOffers,
+        WalletMethod::DisableOffer,
     ];
 
     /// Every method published NIP-47 core defines.
@@ -153,6 +172,11 @@ impl WalletMethod {
             WalletMethod::ListInvoices => "list_invoices",
             WalletMethod::PayBip321 => "pay_bip321",
             WalletMethod::MakeBip321 => "make_bip321",
+            WalletMethod::MakeOffer => "make_offer",
+            WalletMethod::LookupPayment => "lookup_payment",
+            WalletMethod::PayOffer => "pay_offer",
+            WalletMethod::ListOffers => "list_offers",
+            WalletMethod::DisableOffer => "disable_offer",
             WalletMethod::Unknown(s) => s,
         }
     }
@@ -190,6 +214,11 @@ impl FromStr for WalletMethod {
             "list_invoices" => WalletMethod::ListInvoices,
             "pay_bip321" => WalletMethod::PayBip321,
             "make_bip321" => WalletMethod::MakeBip321,
+            "make_offer" => WalletMethod::MakeOffer,
+            "lookup_payment" => WalletMethod::LookupPayment,
+            "pay_offer" => WalletMethod::PayOffer,
+            "list_offers" => WalletMethod::ListOffers,
+            "disable_offer" => WalletMethod::DisableOffer,
             other => WalletMethod::Unknown(other.to_string()),
         })
     }

@@ -6,8 +6,11 @@
     "/home/rene/git/nwc/03.md",
     "/home/rene/git/nwc/04.md",
     "/home/rene/git/nwc/05.md",
+    "/home/rene/git/nwc/09.md",
+    "/home/rene/git/nwc/12.md",
     "/home/rene/git/nips/nwc-onchain.md",
     "/home/rene/git/nips/nwc-invoices.md",
+    "/home/rene/git/nips/nwc-offers.md",
     "/home/rene/git/nips/nwc-bip321.md",
     "/home/rene/git/nips/nwc-route.md"
   ],
@@ -338,6 +341,110 @@
     },
     {
       "kind": "method",
+      "name": "lookup_payment",
+      "request": {
+        "method": "lookup_payment",
+        "params": {
+          "invoice": "lnbc50n1...",
+          "payment_hash": "31afdf1.."
+        }
+      },
+      "response": {
+        "result": {
+          "amount": 123000,
+          "created_at": 0,
+          "details": {},
+          "expires_at": 0,
+          "failure_reason": "string",
+          "fees_paid": 1000,
+          "metadata": {},
+          "payment_type": "extension_defined_type",
+          "settled_at": 0,
+          "state": "settled",
+          "transaction_id": "wallet-scoped-id",
+          "type": "outgoing",
+          "updated_at": 0
+        },
+        "result_type": "lookup_payment"
+      },
+      "source": "/home/rene/git/nwc/09.md"
+    },
+    {
+      "kind": "method",
+      "name": "make_offer",
+      "request": {
+        "method": "make_offer",
+        "params": {
+          "amount": 123000,
+          "description": "string",
+          "expires_at": 0,
+          "issuer": "example.com",
+          "metadata": {},
+          "single_use": false
+        }
+      },
+      "response": {
+        "result": {
+          "amount": 123000,
+          "created_at": 0,
+          "description": "string",
+          "expires_at": 0,
+          "issuer": "example.com",
+          "offer": "lno1...",
+          "offer_id": "0123456789abcdef...",
+          "single_use": false
+        },
+        "result_type": "make_offer"
+      },
+      "source": "/home/rene/git/nwc/12.md"
+    },
+    {
+      "kind": "method",
+      "name": "lookup_payment",
+      "request": {
+        "method": "lookup_payment",
+        "params": {
+          "lookup": {
+            "offer_id": "0123456789abcdef...",
+            "payment_hash": "31afdf1c..."
+          },
+          "payment_type": "bolt12"
+        }
+      },
+      "response": {
+        "result": {
+          "amount": 123000,
+          "created_at": 0,
+          "details": {
+            "description": "string",
+            "invoice": "lni1...",
+            "invoice_request": "lnr1...",
+            "issuer": "example.com",
+            "offer": "lno1...",
+            "offer_id": "0123456789abcdef...",
+            "payer_note": "string",
+            "payer_proof": "lnp1...",
+            "payment_hash": "31afdf1c...",
+            "preimage": "0123456789abcdef...",
+            "quantity": 1
+          },
+          "expires_at": 0,
+          "failure_reason": "string",
+          "fees_paid": 1000,
+          "metadata": {},
+          "payment_type": "bolt12",
+          "settled_at": 0,
+          "state": "settled",
+          "transaction_id": "wallet-scoped-id",
+          "type": "incoming",
+          "updated_at": 0
+        },
+        "result_type": "lookup_payment"
+      },
+      "source": "/home/rene/git/nwc/12.md"
+    },
+    {
+      "kind": "method",
       "name": "pay_onchain",
       "request": {
         "method": "pay_onchain",
@@ -477,6 +584,75 @@
         "result_type": "list_invoices"
       },
       "source": "/home/rene/git/nips/nwc-invoices.md"
+    },
+    {
+      "kind": "method",
+      "name": "pay_offer",
+      "request": {
+        "method": "pay_offer",
+        "params": {
+          "amount": 123000,
+          "offer": "lno1...",
+          "payer_note": "string"
+        }
+      },
+      "response": {
+        "result": {
+          "fees_paid": 1000,
+          "preimage": "0123456789abcdef...",
+          "transaction_id": "wallet-scoped-id"
+        },
+        "result_type": "pay_offer"
+      },
+      "source": "/home/rene/git/nips/nwc-offers.md"
+    },
+    {
+      "kind": "method",
+      "name": "list_offers",
+      "request": {
+        "method": "list_offers",
+        "params": {
+          "active_only": true,
+          "limit": 10,
+          "offset": 0
+        }
+      },
+      "response": {
+        "result": {
+          "offers": [
+            {
+              "active": true,
+              "amount": 123000,
+              "created_at": 1703225000,
+              "description": "string",
+              "expires_at": 1703311400,
+              "issuer": "example.com",
+              "num_payments_received": 5,
+              "offer": "lno1...",
+              "offer_id": "0123456789abcdef...",
+              "single_use": false,
+              "total_received": 615000
+            }
+          ]
+        },
+        "result_type": "list_offers"
+      },
+      "source": "/home/rene/git/nips/nwc-offers.md"
+    },
+    {
+      "kind": "method",
+      "name": "disable_offer",
+      "request": {
+        "method": "disable_offer",
+        "params": {
+          "offer_id": "0123456789abcdef..."
+        }
+      },
+      "response": {
+        "result": {},
+        "result_type": "disable_offer"
+      },
+      "source": "/home/rene/git/nips/nwc-offers.md"
     },
     {
       "kind": "method",

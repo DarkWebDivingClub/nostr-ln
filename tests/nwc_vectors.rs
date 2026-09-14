@@ -20,10 +20,42 @@ fn vectors() -> Vec<Value> {
 }
 
 fn find(name: &str) -> Value {
+    let all: Vec<Value> =
+        vectors().into_iter().filter(|v| v["name"] == name).collect();
+    assert!(!all.is_empty(), "{name} has no vector");
+    assert_eq!(
+        all.len(),
+        1,
+        "{name} has {} vectors — name it by source with find_from",
+        all.len()
+    );
+    all.into_iter().next().unwrap()
+}
+
+/// One vector for a method that more than one document defines.
+///
+/// `lookup_payment` is the case: NWC-09 defines it and NWC-12 extends it
+/// with the `bolt12` payment type, so both documents carry an example and
+/// both are worth decoding. That is not a duplicate definition, and a
+/// `find` that silently took the first would test one of them and quietly
+/// never look at the other.
+fn find_from(name: &str, source_ends_with: &str) -> Value {
     vectors()
         .into_iter()
-        .find(|v| v["name"] == name)
-        .unwrap_or_else(|| panic!("{name} has no vector"))
+        .find(|v| {
+            v["name"] == name
+                && v["source"].as_str().is_some_and(|s| s.ends_with(source_ends_with))
+        })
+        .unwrap_or_else(|| panic!("{name} has no vector from {source_ends_with}"))
+}
+
+/// As `round_trip`, for a vector selected by source.
+fn round_trip_from<T>(name: &str, source: &str, part: &str, inner: &str)
+where
+    T: serde::de::DeserializeOwned + serde::Serialize,
+{
+    let v = find_from(name, source);
+    check_round_trip::<T>(&v, name, part, inner);
 }
 
 /// Decode `v[part]["params"]` or `v[part]["result"]` as `T`, then
@@ -33,6 +65,13 @@ where
     T: serde::de::DeserializeOwned + serde::Serialize,
 {
     let v = find(name);
+    check_round_trip::<T>(&v, name, part, inner);
+}
+
+fn check_round_trip<T>(v: &Value, name: &str, part: &str, inner: &str)
+where
+    T: serde::de::DeserializeOwned + serde::Serialize,
+{
     let doc = v
         .get(part)
         .unwrap_or_else(|| panic!("{name}: no {part} in the vector"))
@@ -132,6 +171,29 @@ fn pay_onchain_round_trips() {
 }
 
 // ── the adopted extensions ───────────────────────────────────────────
+
+#[test]
+fn the_offer_methods_round_trip() {
+    round_trip::<MakeOfferRequest>("make_offer", "request", "params");
+    round_trip::<MakeOfferResponse>("make_offer", "response", "result");
+    round_trip::<PayOfferRequest>("pay_offer", "request", "params");
+    round_trip::<PayOfferResponse>("pay_offer", "response", "result");
+    round_trip::<ListOffersRequest>("list_offers", "request", "params");
+    round_trip::<ListOffersResponse>("list_offers", "response", "result");
+    round_trip::<DisableOfferRequest>("disable_offer", "request", "params");
+    round_trip::<DisableOfferResponse>("disable_offer", "response", "result");
+}
+
+#[test]
+fn lookup_payment_round_trips_for_both_documents_that_define_it() {
+    // NWC-09 defines the method and the bolt11 type; NWC-12 adds bolt12.
+    // One envelope, two payment types, and the envelope has to decode both
+    // — which is the whole reason `details` is untyped.
+    round_trip_from::<LookupPaymentRequest>("lookup_payment", "09.md", "request", "params");
+    round_trip_from::<LookupPaymentResponse>("lookup_payment", "09.md", "response", "result");
+    round_trip_from::<LookupPaymentRequest>("lookup_payment", "12.md", "request", "params");
+    round_trip_from::<LookupPaymentResponse>("lookup_payment", "12.md", "response", "result");
+}
 
 #[test]
 fn pay_keysend_round_trips() {

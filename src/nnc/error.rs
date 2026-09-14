@@ -33,6 +33,17 @@ pub enum ErrorCode {
     /// The requested channel, peer or node was not found.
     #[serde(rename = "NOT_FOUND")]
     NotFound,
+    /// A selector matched more than one payment record. **NWC-09.**
+    ///
+    /// Returned rather than picking one, because a wallet that chose
+    /// arbitrarily would answer a reconciliation question with the wrong
+    /// payment and nothing would say so. The client retries with
+    /// `transaction_id` or a narrower selector.
+    #[serde(rename = "MULTIPLE_MATCHES")]
+    MultipleMatches,
+    /// The wallet does not support that `payment_type`. **NWC-09.**
+    #[serde(rename = "UNSUPPORTED_PAYMENT_TYPE")]
+    UnsupportedPaymentType,
     /// A channel operation could not be completed.
     #[serde(rename = "CHANNEL_FAILED")]
     ChannelFailed,
@@ -77,6 +88,8 @@ impl fmt::Display for ErrorCode {
             Self::Unauthorized => "UNAUTHORIZED",
             Self::QuotaExceeded => "QUOTA_EXCEEDED",
             Self::NotFound => "NOT_FOUND",
+            Self::MultipleMatches => "MULTIPLE_MATCHES",
+            Self::UnsupportedPaymentType => "UNSUPPORTED_PAYMENT_TYPE",
             Self::ChannelFailed => "CHANNEL_FAILED",
             Self::ConnectionFailed => "CONNECTION_FAILED",
             Self::InsufficientBalance => "INSUFFICIENT_BALANCE",

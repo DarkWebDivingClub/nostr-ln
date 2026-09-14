@@ -690,3 +690,245 @@ pub struct Bip321Capability {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub address_types: Option<Vec<String>>,
 }
+
+// ── NWC-12, BOLT12 Offers ───────────────────────────────────────────────
+
+/// `make_offer` request. NWC-12.
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+pub struct MakeOfferRequest {
+    /// Msats per payment. **Absent or null means a variable-amount offer**,
+    /// which is a deliberate request rather than a default — it is what a
+    /// donation address is — and a wallet that cannot issue one must
+    /// refuse rather than substitute an amount.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub amount: Option<u64>,
+    /// Required by BOLT12 whenever `amount` is present.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+    /// Human-readable issuer, encoded into the offer.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub issuer: Option<String>,
+    /// Ask that at most one payment settle. Wallet-enforced policy, **not**
+    /// a property of the encoded offer.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub single_use: Option<bool>,
+    /// Absolute expiry, unix seconds. Must be in the future.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub expires_at: Option<u64>,
+    /// Application-defined metadata. NWC-06.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub metadata: Option<Value>,
+}
+
+/// `make_offer` response. NWC-12.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct MakeOfferResponse {
+    /// The 32-byte BOLT12 offer id, lowercase hex. **This identifies the
+    /// offer everywhere else**, not the encoded string.
+    pub offer_id: String,
+    /// The raw offer.
+    pub offer: String,
+    /// Msats, or null for a variable-amount offer.
+    pub amount: Option<u64>,
+    /// The encoded description.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+    /// The encoded issuer.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub issuer: Option<String>,
+    /// Whether the wallet will let only one payment settle.
+    pub single_use: bool,
+    /// When it was created.
+    pub created_at: u64,
+    /// When it stops answering invoice requests.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub expires_at: Option<u64>,
+}
+
+// ── NWC-09, Payment Lookup ──────────────────────────────────────────────
+
+/// `lookup_payment` request. NWC-09.
+///
+/// Exactly one selector form: `transaction_id`; or the BOLT11 fields
+/// `payment_hash` and/or `invoice`; or `payment_type` with `lookup`.
+/// Mixing them is `BAD_REQUEST`.
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+pub struct LookupPaymentRequest {
+    /// The wallet-scoped id. Every implementation supports this one.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub transaction_id: Option<String>,
+    /// BOLT11 compatibility selector.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub payment_hash: Option<String>,
+    /// BOLT11 compatibility selector.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub invoice: Option<String>,
+    /// Which extension's selectors `lookup` uses. Absent implies `bolt11`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub payment_type: Option<String>,
+    /// Extension-defined selector fields.
+    ///
+    /// Untyped because NWC-09 defines the envelope and each payment-type
+    /// extension defines what goes in here — a closed type would refuse a
+    /// payment type this crate has not adopted, which is the opposite of
+    /// what the envelope is for.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub lookup: Option<Value>,
+}
+
+/// Where a payment record has got to. NWC-09.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum PaymentState {
+    /// Exists, has not met the wallet's settlement policy.
+    Pending,
+    /// Funds committed, settlement deliberately held.
+    Accepted,
+    /// Final, under the wallet's policy.
+    Settled,
+    /// An outgoing attempt ended unsuccessfully.
+    Failed,
+    /// The request expired without settling.
+    Expired,
+    /// Cancelled.
+    Canceled,
+    /// A state this implementation does not know.
+    #[serde(untagged)]
+    Unknown(String),
+}
+
+/// `lookup_payment` response. NWC-09.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct LookupPaymentResponse {
+    /// Stable, wallet-scoped, and the same id other methods report.
+    pub transaction_id: String,
+    /// Incoming or outgoing.
+    #[serde(rename = "type")]
+    pub payment_direction: TransactionType,
+    /// Where it has got to.
+    pub state: PaymentState,
+    /// `bolt11`, `bolt12`, or another extension's type.
+    pub payment_type: String,
+    /// Msats, whatever the payment type's native unit.
+    pub amount: u64,
+    /// Msats.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub fees_paid: Option<u64>,
+    /// When the wallet created the record.
+    pub created_at: u64,
+    /// Last material update.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub updated_at: Option<u64>,
+    /// When the payment expires.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub expires_at: Option<u64>,
+    /// When it settled.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub settled_at: Option<u64>,
+    /// Required when `state` is `failed`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub failure_reason: Option<String>,
+    /// Application-defined metadata. NWC-06.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub metadata: Option<Value>,
+    /// Defined by the payment type. Untyped for the same reason `lookup`
+    /// is: the envelope is generic and the extensions are not.
+    pub details: Value,
+}
+
+// ── `nwc-offers.md`, what NWC-12 does not cover ─────────────────────────
+
+/// `pay_offer` request.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PayOfferRequest {
+    /// The encoded offer.
+    ///
+    /// The offer itself, not an `offer_id`: paying is the one operation
+    /// where the wallet did not create the object and has no id for it
+    /// until it parses one.
+    pub offer: String,
+    /// Msats, required where the offer fixes no amount.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub amount: Option<u64>,
+    /// Shown to the payee.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub payer_note: Option<String>,
+}
+
+/// `pay_offer` response.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PayOfferResponse {
+    /// NWC-09's id, so the payer can reconcile this afterwards.
+    pub transaction_id: String,
+    /// The preimage of the completed payment.
+    pub preimage: String,
+    /// Msats.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub fees_paid: Option<u64>,
+}
+
+/// One entry of `list_offers`.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct OfferRecord {
+    /// NWC-12's offer id.
+    pub offer_id: String,
+    /// The raw offer.
+    pub offer: String,
+    /// Its description.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+    /// Its issuer.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub issuer: Option<String>,
+    /// Msats, or null for a variable-amount offer.
+    pub amount: Option<u64>,
+    /// False once disabled or expired. **Not a statement about the
+    /// network** — the string is still valid and payers still hold it.
+    pub active: bool,
+    /// Whether the wallet lets only one payment settle.
+    pub single_use: bool,
+    /// **Settled** payments only.
+    pub num_payments_received: u64,
+    /// Msats, settled only.
+    pub total_received: u64,
+    /// When it was created.
+    pub created_at: u64,
+    /// When it expires.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub expires_at: Option<u64>,
+}
+
+/// `list_offers` request.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ListOffersRequest {
+    /// Defaults to **false**, so the unfiltered call is the complete one.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub active_only: Option<bool>,
+    /// How many to return.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub limit: Option<u64>,
+    /// Where to start.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub offset: Option<u64>,
+}
+
+/// `list_offers` response.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ListOffersResponse {
+    /// The offers.
+    pub offers: Vec<OfferRecord>,
+}
+
+/// `disable_offer` request.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct DisableOfferRequest {
+    /// Which offer. NWC-12's id.
+    pub offer_id: String,
+}
+
+/// `disable_offer` response. Empty.
+///
+/// **Not revocation.** The string is published; this makes the wallet stop
+/// issuing invoices against it. Idempotent.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct DisableOfferResponse {}
