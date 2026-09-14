@@ -212,6 +212,19 @@ pub trait WalletService: Send + Sync {
         disable_offer(DisableOfferRequest) -> DisableOfferResponse,
     }
 
+    /// Which notifications this wallet emits. **NWC-02.**
+    ///
+    /// Declared rather than generated, because a notification follows from
+    /// node work rather than from anything in this impl block — there is
+    /// nothing for `#[nostr_ln::service]` to read. Empty by default, which
+    /// is right: a wallet that sends none should advertise none.
+    ///
+    /// The service publishes this as the info event's `notifications` tag
+    /// and a wallet should return the same list from `get_info`.
+    fn notifications(&self) -> &'static [&'static str] {
+        &[]
+    }
+
     /// As [`ControlService::prepare`].
     ///
     /// A wallet has more use for this than a node does: `pay_invoice` and

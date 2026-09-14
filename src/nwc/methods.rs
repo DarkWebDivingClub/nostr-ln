@@ -135,6 +135,13 @@ pub struct GetInfoResponse {
     pub block_hash: Option<String>,
     /// What this connection may call.
     pub methods: Vec<String>,
+    /// Which notifications this connection may receive. **NWC-02.**
+    ///
+    /// The `get_info` half of notification discovery; the info event's
+    /// `notifications` tag is the other half, and a wallet should answer
+    /// the same list in both.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub notifications: Option<Vec<String>>,
     /// Which numbered extension specifications this connection supports.
     ///
     /// Absent while a wallet implements only core, and while an extension

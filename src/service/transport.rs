@@ -484,8 +484,17 @@ impl Service {
     async fn publish_info(&self, client: &Client) -> Result<(), Error> {
         if let Some(w) = &self.wallet {
             let content = w.methods().join(" ");
-            let e = EventBuilder::new(Kind::Custom(WALLET_INFO_KIND), content)
+            let mut e = EventBuilder::new(Kind::Custom(WALLET_INFO_KIND), content)
                 .tag(Tag::parse(vec!["encryption".to_string(), "nip44_v2".to_string()]).unwrap());
+            // NWC-02: a wallet that sends notifications says which. No tag
+            // where it sends none, rather than an empty one — absent and
+            // "none" say the same thing and only one of them is a claim.
+            let notifications = w.notifications();
+            if !notifications.is_empty() {
+                let mut tag = vec!["notifications".to_string()];
+                tag.push(notifications.join(" "));
+                e = e.tag(Tag::parse(tag).unwrap());
+            }
             client.send_event_builder(e).await.map_err(relay_err)?;
         }
         if let Some(c) = &self.control {
