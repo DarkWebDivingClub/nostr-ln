@@ -31,18 +31,28 @@ pub enum WalletNotificationType {
     /// block, after which settling or cancelling is no longer safe, and a
     /// recipient that sits on one holds somebody else's channel funds.
     HoldInvoiceAccepted,
+    /// A payment was received. NWC-02.
+    PaymentReceived,
+    /// A payment was sent. NWC-02.
+    PaymentSent,
     /// A type this implementation does not know.
     Unknown(String),
 }
 
 impl WalletNotificationType {
     /// Every type this crate knows.
-    pub const ALL: [WalletNotificationType; 1] = [WalletNotificationType::HoldInvoiceAccepted];
+    pub const ALL: [WalletNotificationType; 3] = [
+        WalletNotificationType::HoldInvoiceAccepted,
+        WalletNotificationType::PaymentReceived,
+        WalletNotificationType::PaymentSent,
+    ];
 
     /// Its wire spelling.
     pub fn as_str(&self) -> &str {
         match self {
             Self::HoldInvoiceAccepted => "hold_invoice_accepted",
+            Self::PaymentReceived => "payment_received",
+            Self::PaymentSent => "payment_sent",
             Self::Unknown(s) => s,
         }
     }
@@ -60,6 +70,8 @@ impl std::str::FromStr for WalletNotificationType {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         Ok(match s {
             "hold_invoice_accepted" => Self::HoldInvoiceAccepted,
+            "payment_received" => Self::PaymentReceived,
+            "payment_sent" => Self::PaymentSent,
             other => Self::Unknown(other.to_string()),
         })
     }

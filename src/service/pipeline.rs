@@ -216,6 +216,15 @@ fn validate(handler: &Handler<'_>, method: &Method, params: &Value) -> Result<()
             crate::nwc::WalletMethod::SettleHoldInvoice => check::<w::SettleHoldInvoiceRequest>(params),
             crate::nwc::WalletMethod::CancelHoldInvoice => check::<w::CancelHoldInvoiceRequest>(params),
             crate::nwc::WalletMethod::QuotePayment => check::<w::QuotePaymentRequest>(params),
+            crate::nwc::WalletMethod::PayKeysend => check::<w::PayKeysendRequest>(params),
+            crate::nwc::WalletMethod::ListTransactions => check::<w::ListTransactionsRequest>(params),
+            crate::nwc::WalletMethod::MakeNewAddress => check::<w::MakeNewAddressRequest>(params),
+            crate::nwc::WalletMethod::LookupAddress => check::<w::LookupAddressRequest>(params),
+            crate::nwc::WalletMethod::ListAddresses => check::<w::ListAddressesRequest>(params),
+            crate::nwc::WalletMethod::EstimateOnchainFees => check::<w::EstimateOnchainFeesRequest>(params),
+            crate::nwc::WalletMethod::ListInvoices => check::<w::ListInvoicesRequest>(params),
+            crate::nwc::WalletMethod::PayBip321 => check::<w::PayBip321Request>(params),
+            crate::nwc::WalletMethod::MakeBip321 => check::<w::MakeBip321Request>(params),
             // An extension we have not adopted. Dispatch answers
             // NOT_IMPLEMENTED; there is no type here to check against.
             crate::nwc::WalletMethod::Unknown(n) => Err(NncError::not_implemented(&n)),

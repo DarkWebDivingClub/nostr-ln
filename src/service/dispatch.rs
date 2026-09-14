@@ -93,5 +93,14 @@ pub async fn dispatch_wallet(
         settle_hold_invoice => SettleHoldInvoice,
         cancel_hold_invoice => CancelHoldInvoice,
         quote_payment => QuotePayment,
+        pay_keysend => PayKeysend,
+        list_transactions => ListTransactions,
+        make_new_address => MakeNewAddress,
+        lookup_address => LookupAddress,
+        list_addresses => ListAddresses,
+        estimate_onchain_fees => EstimateOnchainFees,
+        list_invoices => ListInvoices,
+        pay_bip321 => PayBip321,
+        make_bip321 => MakeBip321,
     )
 }

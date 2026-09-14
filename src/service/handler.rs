@@ -182,6 +182,24 @@ pub trait WalletService: Send + Sync {
         cancel_hold_invoice(CancelHoldInvoiceRequest) -> CancelHoldInvoiceResponse,
         /// What a payment would cost, without sending it. See `nwc-route.md`.
         quote_payment(QuotePaymentRequest) -> QuotePaymentResponse,
+        /// Send a spontaneous payment to a public key. NWC-04.
+        pay_keysend(PayKeysendRequest) -> PayKeysendResponse,
+        /// Payment history. NWC-05.
+        list_transactions(ListTransactionsRequest) -> ListTransactionsResponse,
+        /// Generate a receiving address. See `nwc-onchain.md`.
+        make_new_address(MakeNewAddressRequest) -> MakeNewAddressResponse,
+        /// What an address has received. See `nwc-onchain.md`.
+        lookup_address(LookupAddressRequest) -> LookupAddressResponse,
+        /// Addresses this wallet generated. See `nwc-onchain.md`.
+        list_addresses(ListAddressesRequest) -> ListAddressesResponse,
+        /// Fee rates by confirmation target. See `nwc-onchain.md`.
+        estimate_onchain_fees(EstimateOnchainFeesRequest) -> EstimateOnchainFeesResponse,
+        /// Invoice entities with state. See `nwc-invoices.md`.
+        list_invoices(ListInvoicesRequest) -> ListInvoicesResponse,
+        /// Pay a BIP-321 URI. See `nwc-bip321.md`.
+        pay_bip321(PayBip321Request) -> PayBip321Response,
+        /// Generate a BIP-321 URI. See `nwc-bip321.md`.
+        make_bip321(MakeBip321Request) -> MakeBip321Response,
     }
 
     /// As [`ControlService::prepare`].

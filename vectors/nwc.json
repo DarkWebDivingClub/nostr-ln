@@ -1,8 +1,15 @@
 {
   "note": "Generated from the NWC specifications by examples/generate_nwc_vectors.rs. Each entry is JSON a specification itself shows, except that the bare token `unixtimestamp` is substituted with 0 because it is a placeholder rather than a value.",
   "sources": [
-    "/tmp/claude-1000/-home-rene-workspaces-x-h3-se-wks/e426c455-73c7-4c52-b771-d169065350ca/scratchpad/nip47-core.md",
-    "/home/rene/git/nips/nwc-onchain.md"
+    "/home/rene/git/nips/47.md",
+    "/home/rene/git/nwc/02.md",
+    "/home/rene/git/nwc/03.md",
+    "/home/rene/git/nwc/04.md",
+    "/home/rene/git/nwc/05.md",
+    "/home/rene/git/nips/nwc-onchain.md",
+    "/home/rene/git/nips/nwc-invoices.md",
+    "/home/rene/git/nips/nwc-bip321.md",
+    "/home/rene/git/nips/nwc-route.md"
   ],
   "vectors": [
     {
@@ -23,7 +30,7 @@
         },
         "result_type": "pay_invoice"
       },
-      "source": "/tmp/claude-1000/-home-rene-workspaces-x-h3-se-wks/e426c455-73c7-4c52-b771-d169065350ca/scratchpad/nip47-core.md"
+      "source": "/home/rene/git/nips/47.md"
     },
     {
       "kind": "method",
@@ -55,7 +62,7 @@
         },
         "result_type": "make_invoice"
       },
-      "source": "/tmp/claude-1000/-home-rene-workspaces-x-h3-se-wks/e426c455-73c7-4c52-b771-d169065350ca/scratchpad/nip47-core.md"
+      "source": "/home/rene/git/nips/47.md"
     },
     {
       "kind": "method",
@@ -85,7 +92,7 @@
         },
         "result_type": "lookup_invoice"
       },
-      "source": "/tmp/claude-1000/-home-rene-workspaces-x-h3-se-wks/e426c455-73c7-4c52-b771-d169065350ca/scratchpad/nip47-core.md"
+      "source": "/home/rene/git/nips/47.md"
     },
     {
       "kind": "method",
@@ -100,7 +107,7 @@
         },
         "result_type": "get_balance"
       },
-      "source": "/tmp/claude-1000/-home-rene-workspaces-x-h3-se-wks/e426c455-73c7-4c52-b771-d169065350ca/scratchpad/nip47-core.md"
+      "source": "/home/rene/git/nips/47.md"
     },
     {
       "kind": "method",
@@ -135,7 +142,199 @@
         },
         "result_type": "get_info"
       },
-      "source": "/tmp/claude-1000/-home-rene-workspaces-x-h3-se-wks/e426c455-73c7-4c52-b771-d169065350ca/scratchpad/nip47-core.md"
+      "source": "/home/rene/git/nips/47.md"
+    },
+    {
+      "kind": "notification",
+      "name": "payment_received",
+      "notification": {
+        "notification": {
+          "amount": 123,
+          "created_at": 0,
+          "description": "string",
+          "description_hash": "string",
+          "expires_at": 0,
+          "fees_paid": 123,
+          "invoice": "string",
+          "metadata": {},
+          "payment_hash": "string",
+          "preimage": "string",
+          "settled_at": 0,
+          "state": "settled",
+          "type": "incoming"
+        },
+        "notification_type": "payment_received"
+      },
+      "source": "/home/rene/git/nwc/02.md"
+    },
+    {
+      "kind": "notification",
+      "name": "payment_sent",
+      "notification": {
+        "notification": {
+          "amount": 123,
+          "created_at": 0,
+          "description": "string",
+          "description_hash": "string",
+          "expires_at": 0,
+          "fees_paid": 123,
+          "invoice": "string",
+          "metadata": {},
+          "payment_hash": "string",
+          "preimage": "string",
+          "settled_at": 0,
+          "state": "settled",
+          "type": "outgoing"
+        },
+        "notification_type": "payment_sent"
+      },
+      "source": "/home/rene/git/nwc/02.md"
+    },
+    {
+      "kind": "method",
+      "name": "make_hold_invoice",
+      "request": {
+        "method": "make_hold_invoice",
+        "params": {
+          "amount": 123,
+          "description": "string",
+          "description_hash": "string",
+          "expiry": 213,
+          "min_cltv_expiry_delta": 144,
+          "payment_hash": "string"
+        }
+      },
+      "response": {
+        "result": {
+          "amount": 123,
+          "created_at": 0,
+          "description": "string",
+          "description_hash": "string",
+          "expires_at": 0,
+          "invoice": "string",
+          "metadata": {},
+          "payment_hash": "string",
+          "type": "incoming"
+        },
+        "result_type": "make_hold_invoice"
+      },
+      "source": "/home/rene/git/nwc/03.md"
+    },
+    {
+      "kind": "method",
+      "name": "cancel_hold_invoice",
+      "request": {
+        "method": "cancel_hold_invoice",
+        "params": {
+          "payment_hash": "string"
+        }
+      },
+      "response": {
+        "result": {},
+        "result_type": "cancel_hold_invoice"
+      },
+      "source": "/home/rene/git/nwc/03.md"
+    },
+    {
+      "kind": "method",
+      "name": "settle_hold_invoice",
+      "request": {
+        "method": "settle_hold_invoice",
+        "params": {
+          "preimage": "string"
+        }
+      },
+      "response": {
+        "result": {},
+        "result_type": "settle_hold_invoice"
+      },
+      "source": "/home/rene/git/nwc/03.md"
+    },
+    {
+      "kind": "notification",
+      "name": "hold_invoice_accepted",
+      "notification": {
+        "notification": {
+          "amount": 123,
+          "created_at": 0,
+          "description": "string",
+          "description_hash": "string",
+          "expires_at": 0,
+          "invoice": "string",
+          "metadata": {},
+          "payment_hash": "string",
+          "settle_deadline": 0,
+          "state": "accepted",
+          "type": "incoming"
+        },
+        "notification_type": "hold_invoice_accepted"
+      },
+      "source": "/home/rene/git/nwc/03.md"
+    },
+    {
+      "kind": "method",
+      "name": "pay_keysend",
+      "request": {
+        "method": "pay_keysend",
+        "params": {
+          "amount": 123,
+          "preimage": "0123456789abcdef...",
+          "pubkey": "03...",
+          "tlv_records": [
+            {
+              "type": 5482373484,
+              "value": "0123456789abcdef"
+            }
+          ]
+        }
+      },
+      "response": {
+        "result": {
+          "fees_paid": 123,
+          "preimage": "0123456789abcdef..."
+        },
+        "result_type": "pay_keysend"
+      },
+      "source": "/home/rene/git/nwc/04.md"
+    },
+    {
+      "kind": "method",
+      "name": "list_transactions",
+      "request": {
+        "method": "list_transactions",
+        "params": {
+          "from": 1693876973,
+          "limit": 10,
+          "offset": 0,
+          "type": "incoming",
+          "unpaid": true,
+          "until": 1703225078
+        }
+      },
+      "response": {
+        "result": {
+          "total_count": 42,
+          "transactions": [
+            {
+              "amount": 123,
+              "created_at": 0,
+              "description": "string",
+              "description_hash": "string",
+              "expires_at": 0,
+              "fees_paid": 123,
+              "invoice": "string",
+              "metadata": {},
+              "payment_hash": "string",
+              "preimage": "string",
+              "settled_at": 0,
+              "state": "pending",
+              "type": "incoming"
+            }
+          ]
+        },
+        "result_type": "list_transactions"
+      },
+      "source": "/home/rene/git/nwc/05.md"
     },
     {
       "kind": "method",
@@ -159,62 +358,180 @@
     },
     {
       "kind": "method",
-      "name": "make_hold_invoice",
+      "name": "make_new_address",
       "request": {
-        "method": "make_hold_invoice",
+        "method": "make_new_address",
         "params": {
-          "amount": 123,
-          "description": "string",
-          "description_hash": "string",
-          "expiry": 213,
-          "payment_hash": "string",
-          "min_cltv_expiry_delta": 144
+          "type": "p2wpkh"
         }
       },
       "response": {
-        "result_type": "make_hold_invoice",
         "result": {
-          "type": "incoming",
-          "invoice": "string",
-          "description": "string",
-          "description_hash": "string",
-          "payment_hash": "string",
-          "amount": 123,
-          "created_at": 1700000000,
-          "expires_at": 1700003600
-        }
+          "address": "bc1q...",
+          "type": "p2wpkh"
+        },
+        "result_type": "make_new_address"
       },
-      "source": "/tmp/claude-1000/-home-rene-workspaces-x-h3-se-wks/e426c455-73c7-4c52-b771-d169065350ca/scratchpad/nwc/03.md"
+      "source": "/home/rene/git/nips/nwc-onchain.md"
     },
     {
       "kind": "method",
-      "name": "cancel_hold_invoice",
+      "name": "lookup_address",
       "request": {
-        "method": "cancel_hold_invoice",
+        "method": "lookup_address",
         "params": {
-          "payment_hash": "string"
+          "address": "bc1q..."
         }
       },
       "response": {
-        "result_type": "cancel_hold_invoice",
-        "result": {}
+        "result": {
+          "address": "bc1q...",
+          "total_received_sats": 100000,
+          "transactions": [
+            {
+              "amount_sats": 100000,
+              "confirmations": 6,
+              "timestamp": 1703225000,
+              "txid": "abc123..."
+            }
+          ],
+          "type": "p2wpkh"
+        },
+        "result_type": "lookup_address"
       },
-      "source": "/tmp/claude-1000/-home-rene-workspaces-x-h3-se-wks/e426c455-73c7-4c52-b771-d169065350ca/scratchpad/nwc/03.md"
+      "source": "/home/rene/git/nips/nwc-onchain.md"
     },
     {
       "kind": "method",
-      "name": "settle_hold_invoice",
+      "name": "list_addresses",
       "request": {
-        "method": "settle_hold_invoice",
+        "method": "list_addresses",
         "params": {
-          "preimage": "string"
+          "limit": 10,
+          "offset": 0
         }
       },
       "response": {
-        "result_type": "settle_hold_invoice",
-        "result": {}
+        "result": {
+          "addresses": [
+            {
+              "address": "bc1q...",
+              "created_at": 1703225000,
+              "total_received_sats": 100000,
+              "type": "p2wpkh"
+            }
+          ]
+        },
+        "result_type": "list_addresses"
       },
-      "source": "/tmp/claude-1000/-home-rene-workspaces-x-h3-se-wks/e426c455-73c7-4c52-b771-d169065350ca/scratchpad/nwc/03.md"
+      "source": "/home/rene/git/nips/nwc-onchain.md"
+    },
+    {
+      "kind": "method",
+      "name": "estimate_onchain_fees",
+      "request": {
+        "method": "estimate_onchain_fees",
+        "params": {}
+      },
+      "response": {
+        "result": {
+          "fees": {
+            "1": 25.0,
+            "144": 1.0,
+            "6": 6.0
+          }
+        },
+        "result_type": "estimate_onchain_fees"
+      },
+      "source": "/home/rene/git/nips/nwc-onchain.md"
+    },
+    {
+      "kind": "method",
+      "name": "list_invoices",
+      "request": {
+        "method": "list_invoices",
+        "params": {
+          "from": 1693876973,
+          "limit": 10,
+          "offset": 0,
+          "state": "pending",
+          "until": 1703225078
+        }
+      },
+      "response": {
+        "result": {
+          "invoices": [
+            {
+              "amount": 123,
+              "created_at": 1693876973,
+              "description": "string",
+              "expires_at": 1693880573,
+              "invoice": "lnbc50n1...",
+              "payment_hash": "string",
+              "preimage": "string",
+              "settled_at": 1693877000,
+              "state": "pending"
+            }
+          ]
+        },
+        "result_type": "list_invoices"
+      },
+      "source": "/home/rene/git/nips/nwc-invoices.md"
+    },
+    {
+      "kind": "method",
+      "name": "pay_bip321",
+      "request": {
+        "method": "pay_bip321",
+        "params": {
+          "uri": "bitcoin:bc1q...?lightning=lnbc...&lno=lno1..."
+        }
+      },
+      "response": {
+        "result": {
+          "fees_paid": 100,
+          "payment_method": "bolt11",
+          "preimage": "0123...",
+          "txid": "abc123..."
+        },
+        "result_type": "pay_bip321"
+      },
+      "source": "/home/rene/git/nips/nwc-bip321.md"
+    },
+    {
+      "kind": "method",
+      "name": "make_bip321",
+      "request": {
+        "method": "make_bip321",
+        "params": {
+          "amount": 50000000,
+          "label": "Alice's Shop",
+          "message": "Order #123",
+          "methods": [
+            {
+              "expiry": 3600,
+              "method": "bolt11"
+            },
+            {
+              "method": "bolt12"
+            },
+            {
+              "method": "sp"
+            },
+            {
+              "address_type": "p2tr",
+              "method": "onchain"
+            }
+          ]
+        }
+      },
+      "response": {
+        "result": {
+          "uri": "bitcoin:bc1q...?amount=0.0005&label=...&lightning=lnbc..."
+        },
+        "result_type": "make_bip321"
+      },
+      "source": "/home/rene/git/nips/nwc-bip321.md"
     },
     {
       "kind": "method",
@@ -222,18 +539,18 @@
       "request": {
         "method": "quote_payment",
         "params": {
-          "invoice": "lnbc...",
-          "amount": 123000
+          "amount": 123000,
+          "invoice": "lnbc..."
         }
       },
       "response": {
-        "result_type": "quote_payment",
         "result": {
           "amount": 123000,
-          "fee_msat": 1200,
           "cltv_expiry_delta": 144,
+          "fee_msat": 1200,
           "route_found": true
-        }
+        },
+        "result_type": "quote_payment"
       },
       "source": "/home/rene/git/nips/nwc-route.md"
     }

@@ -49,7 +49,7 @@ impl WalletService for Stub {
     {
         Box::pin(async move {
             self.ran("get_balance");
-            Ok(GetBalanceResponse { balance: 1 })
+            Ok(GetBalanceResponse { balance: 1, ..Default::default() })
         })
     }
 
@@ -67,6 +67,7 @@ impl WalletService for Stub {
                 expires_at: None,
                 description: r.description,
                 description_hash: r.description_hash,
+                metadata: None,
             })
         })
     }
@@ -121,7 +122,7 @@ impl WalletService for CoreOnly {
     fn get_balance<'a>(&'a self, _r: GetBalanceRequest, _c: Caller<'a>)
         -> Fut<'a, Result<GetBalanceResponse, NncError>>
     {
-        Box::pin(async move { Ok(GetBalanceResponse { balance: 0 }) })
+        Box::pin(async move { Ok(GetBalanceResponse { balance: 0, ..Default::default() }) })
     }
 }
 

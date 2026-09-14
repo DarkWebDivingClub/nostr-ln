@@ -27,7 +27,7 @@ impl WalletService for Wallet {
         _r: GetBalanceRequest,
         _c: Caller<'a>,
     ) -> Fut<'a, Result<GetBalanceResponse, NncError>> {
-        Box::pin(async move { Ok(GetBalanceResponse { balance: 0 }) })
+        Box::pin(async move { Ok(GetBalanceResponse { balance: 0, ..Default::default() }) })
     }
 }
 

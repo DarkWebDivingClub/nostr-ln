@@ -91,10 +91,19 @@ pub struct GetBalanceRequest {}
 /// `lightning_balance` and `onchain_balance_sats`; that is divergence
 /// inside core and belongs in an extension, which is 18.2's to decide. A
 /// wallet holding only on-chain funds reports them here.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct GetBalanceResponse {
     /// The balance in msats.
     pub balance: u64,
+    /// Msats held in channels. **`nwc-onchain.md`.**
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub lightning_balance: Option<u64>,
+    /// Sats held on chain. **`nwc-onchain.md`.**
+    ///
+    /// Sats, not msats, and the name says so — the chain has no smaller
+    /// unit. See `nwc-units.md`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub onchain_balance_sats: Option<u64>,
 }
 
 // ── get_info ─────────────────────────────────────────────────────────
@@ -134,6 +143,13 @@ pub struct GetInfoResponse {
     /// `pay_onchain` appears in `methods` alone.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub extensions: Option<Vec<String>>,
+    /// Which BIP-321 instruction types this wallet pays. **`nwc-bip321.md`.**
+    ///
+    /// The capability discovery a polymorphic `pay_bip321` cannot carry:
+    /// implementing the method says nothing about which instructions the
+    /// wallet will actually pay.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub bip321_methods: Option<Vec<Bip321Capability>>,
 }
 
 // ── pay_onchain (nwc-onchain.md) ─────────────────────────────────────
@@ -225,6 +241,9 @@ pub struct MakeHoldInvoiceResponse {
     /// Hash of a description too long to carry.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub description_hash: Option<String>,
+    /// Application-defined metadata. NWC-06.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub metadata: Option<Value>,
 }
 
 /// `settle_hold_invoice` request.
@@ -317,4 +336,357 @@ pub struct HoldInvoiceAccepted {
     /// Hash of a description too long to carry.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub description_hash: Option<String>,
+    /// Application-defined metadata. NWC-06.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub metadata: Option<Value>,
+}
+
+// ── NWC-04, Keysend Payments ────────────────────────────────────────────
+
+/// A TLV record carried with a keysend payment.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct TlvRecord {
+    /// TLV type.
+    #[serde(rename = "type")]
+    pub tlv_type: u64,
+    /// Hex-encoded value.
+    pub value: String,
+}
+
+/// `pay_keysend` request.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PayKeysendRequest {
+    /// Value in msats.
+    pub amount: u64,
+    /// The payee's public key.
+    pub pubkey: String,
+    /// The preimage, if the caller chose it.
+    ///
+    /// Keysend carries the preimage to the payee rather than deriving the
+    /// payment from an invoice, so whoever supplies it decides what
+    /// settles the payment.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub preimage: Option<String>,
+    /// TLV records to carry.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tlv_records: Option<Vec<TlvRecord>>,
+}
+
+/// `pay_keysend` response.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PayKeysendResponse {
+    /// The preimage of the completed payment.
+    pub preimage: String,
+    /// Routing fees in msats.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub fees_paid: Option<u64>,
+}
+
+// ── NWC-05, Transaction History ─────────────────────────────────────────
+
+/// `list_transactions` request.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ListTransactionsRequest {
+    /// Inclusive start, unix seconds. Defaults to 0.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub from: Option<u64>,
+    /// Inclusive end, unix seconds. Defaults to now.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub until: Option<u64>,
+    /// How many to return.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub limit: Option<u64>,
+    /// Where to start.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub offset: Option<u64>,
+    /// Include unpaid invoices. Defaults to false.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub unpaid: Option<bool>,
+    /// Restrict to one direction. Both when absent.
+    #[serde(rename = "type", default, skip_serializing_if = "Option::is_none")]
+    pub transaction_type: Option<TransactionType>,
+}
+
+/// `list_transactions` response.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ListTransactionsResponse {
+    /// Newest first.
+    pub transactions: Vec<Transaction>,
+    /// How many match the filters, ignoring pagination.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub total_count: Option<u64>,
+}
+
+// ── NWC-02, Notifications ───────────────────────────────────────────────
+
+/// The `payment_received` notification payload. NWC-02.
+///
+/// The same record `make_invoice` and `lookup_invoice` return, which is
+/// what the specification shows — a notification is the wallet saying a
+/// transaction reached a state, not a different object.
+pub type PaymentReceived = Transaction;
+
+/// The `payment_sent` notification payload. NWC-02.
+pub type PaymentSent = Transaction;
+
+// ── `nwc-onchain.md`, addresses and fees ────────────────────────────────
+
+/// `make_new_address` request.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct MakeNewAddressRequest {
+    /// Which kind of address. The wallet chooses when absent.
+    #[serde(rename = "type", default, skip_serializing_if = "Option::is_none")]
+    pub address_type: Option<String>,
+}
+
+/// `make_new_address` response.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct MakeNewAddressResponse {
+    /// The generated address.
+    pub address: String,
+    /// What was actually created.
+    ///
+    /// Present even when the request named no type, so a caller that asked
+    /// for nothing still learns what it got.
+    #[serde(rename = "type")]
+    pub address_type: String,
+}
+
+/// One payment to an address.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct AddressTransaction {
+    /// The transaction id.
+    pub txid: String,
+    /// Value in sats.
+    pub amount_sats: u64,
+    /// **Zero while unconfirmed.** An unconfirmed output is counted in
+    /// `total_received_sats` and can still disappear.
+    pub confirmations: u64,
+    /// Unix seconds.
+    pub timestamp: u64,
+}
+
+/// `lookup_address` request.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct LookupAddressRequest {
+    /// The address to look up.
+    pub address: String,
+}
+
+/// `lookup_address` response.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct LookupAddressResponse {
+    /// The address.
+    pub address: String,
+    /// Its kind.
+    #[serde(rename = "type")]
+    pub address_type: String,
+    /// Value in sats, **including unconfirmed**.
+    pub total_received_sats: u64,
+    /// What paid it.
+    pub transactions: Vec<AddressTransaction>,
+}
+
+/// One entry of `list_addresses`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct AddressRecord {
+    /// The address.
+    pub address: String,
+    /// Its kind.
+    #[serde(rename = "type")]
+    pub address_type: String,
+    /// Value in sats.
+    pub total_received_sats: u64,
+    /// When it was generated.
+    pub created_at: u64,
+}
+
+/// `list_addresses` request.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ListAddressesRequest {
+    /// How many to return.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub limit: Option<u64>,
+    /// Where to start.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub offset: Option<u64>,
+}
+
+/// `list_addresses` response.
+///
+/// What the wallet **generated**, not everything it can spend from.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ListAddressesResponse {
+    /// The addresses.
+    pub addresses: Vec<AddressRecord>,
+}
+
+/// `estimate_onchain_fees` request. Takes nothing.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct EstimateOnchainFeesRequest {}
+
+/// `estimate_onchain_fees` response.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct EstimateOnchainFeesResponse {
+    /// Confirmation target in blocks, to sat/vbyte.
+    ///
+    /// **Which targets appear is the wallet's choice**, so a caller reads
+    /// the keys rather than assuming a set. One entry is a complete
+    /// answer, not a degraded one — which is why this is a map and not a
+    /// struct of named priorities.
+    pub fees: std::collections::BTreeMap<String, f64>,
+}
+
+// ── `nwc-invoices.md` ───────────────────────────────────────────────────
+
+/// `list_invoices` request.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ListInvoicesRequest {
+    /// Inclusive start, unix seconds, filtering on **creation**.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub from: Option<u64>,
+    /// Inclusive end, unix seconds, filtering on **creation**.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub until: Option<u64>,
+    /// How many to return.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub limit: Option<u64>,
+    /// Where to start.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub offset: Option<u64>,
+    /// Restrict to one state.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub state: Option<InvoiceState>,
+}
+
+/// The state of an invoice entity.
+///
+/// Three, not [`TransactionState`]'s six: this lists invoices, and
+/// `failed` is a thing that happens to a payment.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum InvoiceState {
+    /// Unpaid and not yet expired.
+    Pending,
+    /// Paid.
+    Settled,
+    /// Past `expires_at` and unpaid.
+    Expired,
+    /// A state this implementation does not know.
+    #[serde(untagged)]
+    Unknown(String),
+}
+
+/// One entry of `list_invoices`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct InvoiceRecord {
+    /// The encoded invoice.
+    pub invoice: String,
+    /// Its description.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+    /// The payment hash.
+    pub payment_hash: String,
+    /// Value in msats.
+    pub amount: u64,
+    /// Where it has got to.
+    pub state: InvoiceState,
+    /// Present exactly when `state` is `settled`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub preimage: Option<String>,
+    /// When it was created.
+    pub created_at: u64,
+    /// When it stops accepting payment.
+    pub expires_at: u64,
+    /// Present exactly when `state` is `settled`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub settled_at: Option<u64>,
+}
+
+/// `list_invoices` response.
+///
+/// **Not a payment history.** An invoice nobody paid did not happen, so it
+/// is absent from `list_transactions` and present here, which is the
+/// reason both exist.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ListInvoicesResponse {
+    /// The invoices.
+    pub invoices: Vec<InvoiceRecord>,
+}
+
+// ── `nwc-bip321.md` ─────────────────────────────────────────────────────
+
+/// `pay_bip321` request.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PayBip321Request {
+    /// The `bitcoin:` URI.
+    pub uri: String,
+}
+
+/// `pay_bip321` response.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PayBip321Response {
+    /// Which instruction was used.
+    ///
+    /// **Required**, because the outcomes differ in kind: a Lightning
+    /// payment is final on the preimage, an on-chain one still needs
+    /// confirmations. A caller that assumed one and got the other would
+    /// report success too early.
+    pub payment_method: String,
+    /// Present for `bolt11` and `bolt12`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub preimage: Option<String>,
+    /// Present for `onchain` and `sp`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub txid: Option<String>,
+    /// Fees in msats.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub fees_paid: Option<u64>,
+}
+
+/// One instruction to include in a generated URI.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Bip321Method {
+    /// `bolt11`, `bolt12`, `sp` or `onchain`.
+    pub method: String,
+    /// Seconds, for `bolt11` and `bolt12`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub expiry: Option<u64>,
+    /// For `onchain`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub address_type: Option<String>,
+}
+
+/// `make_bip321` request.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct MakeBip321Request {
+    /// Value in msats. Required for `bolt11`, which is skipped without it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub amount: Option<u64>,
+    /// Names the payee. Appears **only** in the URI's `label=`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub label: Option<String>,
+    /// The URI message, and the invoice and offer description.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub message: Option<String>,
+    /// Ordered: the payee's preference. Everything available when absent.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub methods: Option<Vec<Bip321Method>>,
+}
+
+/// `make_bip321` response.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct MakeBip321Response {
+    /// The generated URI.
+    pub uri: String,
+}
+
+/// What instruction types a wallet can pay. `get_info`, `nwc-bip321.md`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Bip321Capability {
+    /// `bolt11`, `bolt12`, `sp` or `onchain`.
+    pub method: String,
+    /// For `onchain`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub address_types: Option<Vec<String>>,
 }

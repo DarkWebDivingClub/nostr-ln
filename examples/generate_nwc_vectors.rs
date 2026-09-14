@@ -4,13 +4,30 @@
 //! examples, not examples written to match the code. A type that only
 //! round-trips what it emits proves nothing.
 //!
-//! Two sources, because NIP-47 is modular since 2026-08-01 — a five-method
-//! core plus numbered extension specifications:
+//! Many sources, because NIP-47 is modular since 2026-08-01 — a
+//! five-method core plus numbered extension specifications, and we adopt
+//! some of those and draft others.
+//!
+//! **Every source is a durable path in a checked-out repository.** It was
+//! not always: the first generation read upstream from a session
+//! scratchpad that no longer exists, and recorded that path in each
+//! vector's `source`, so `vectors/nwc.json` could not be regenerated at
+//! all. Mission 25.2 cloned `github.com/nostr-wallet-connect/nwc` to
+//! `~/git/nwc` to fix it. A vector whose provenance cannot be re-read is
+//! a vector nobody can check.
+//!
+//! `47.md` is read from `~/git/nips` directly. It used to be fetched from
+//! an `upstream` remote that was never configured — so that command could
+//! not have worked — and mission 25.1 made the indirection pointless by
+//! putting upstream's core there verbatim.
 //!
 //! ```sh
-//! git -C ~/git/nips show upstream/master:47.md > /tmp/nip47-core.md
 //! cargo run --example generate_nwc_vectors -- \
-//!     /tmp/nip47-core.md ~/git/nips/nwc-onchain.md > vectors/nwc.json
+//!     ~/git/nips/47.md \
+//!     ~/git/nwc/03.md ~/git/nwc/04.md ~/git/nwc/05.md \
+//!     ~/git/nips/nwc-onchain.md ~/git/nips/nwc-invoices.md \
+//!     ~/git/nips/nwc-bip321.md ~/git/nips/nwc-route.md \
+//!     > vectors/nwc.json
 //! ```
 //!
 //! Two differences from the NNC generator, both properties of the upstream
@@ -33,10 +50,9 @@ fn main() {
     for path in &paths {
         let doc = std::fs::read_to_string(path)
             .unwrap_or_else(|e| panic!("read {path}: {e}"));
-        for (name, body) in sections(&doc, "### `") {
+        for (name, body) in sections(&doc) {
             let mut v = serde_json::Map::new();
             v.insert("name".into(), name.clone().into());
-            v.insert("kind".into(), "method".into());
             v.insert("source".into(), path.clone().into());
             if let Some(j) = labelled_block(&body, "Request:") {
                 v.insert("request".into(), j);
@@ -44,7 +60,19 @@ fn main() {
             if let Some(j) = labelled_block(&body, "Response:") {
                 v.insert("response".into(), j);
             }
-            if v.contains_key("request") || v.contains_key("response") {
+            // A notification has neither, and until 25.2 that meant it had
+            // no vector at all — so nothing checked a notification payload
+            // against the document that defines it. `hold_invoice_accepted`
+            // was missing `metadata` for exactly as long.
+            if let Some(j) = labelled_block(&body, "Notification:") {
+                v.insert("notification".into(), j);
+            }
+            let kind = if v.contains_key("notification") { "notification" } else { "method" };
+            v.insert("kind".into(), kind.into());
+            if v.contains_key("request")
+                || v.contains_key("response")
+                || v.contains_key("notification")
+            {
                 out.push(v.into());
             }
         }
@@ -62,12 +90,41 @@ fn main() {
     println!("{}", serde_json::to_string_pretty(&doc_out).unwrap());
 }
 
-/// Split the document on a heading prefix, returning (name, body).
-fn sections(doc: &str, prefix: &str) -> Vec<(String, String)> {
-    let mut out = Vec::new();
-    for chunk in doc.split(prefix).skip(1) {
-        let Some(end) = chunk.find('`') else { continue };
-        out.push((chunk[..end].to_string(), chunk[end..].to_string()));
+/// Every backticked `##` or `###` heading, with the body under it.
+///
+/// Line-anchored rather than a substring split: `"### `"` contains
+/// `"## `"`, so splitting on the shorter prefix would find every level-3
+/// heading twice and emit each vector twice.
+///
+/// Both levels because the documents disagree — NWC-02 writes its
+/// notifications as `##` and NWC-03 writes its as `###`, and a generator
+/// that read one level silently skipped the other.
+fn sections(doc: &str) -> Vec<(String, String)> {
+    let mut out: Vec<(String, String)> = Vec::new();
+    let mut current: Option<(String, String)> = None;
+    for line in doc.lines() {
+        let heading = line
+            .strip_prefix("### `")
+            .or_else(|| line.strip_prefix("## `"))
+            .and_then(|rest| rest.split('`').next())
+            .filter(|name| !name.is_empty());
+        match heading {
+            Some(name) => {
+                if let Some(done) = current.take() {
+                    out.push(done);
+                }
+                current = Some((name.to_string(), String::new()));
+            }
+            None => {
+                if let Some((_, body)) = current.as_mut() {
+                    body.push_str(line);
+                    body.push('\n');
+                }
+            }
+        }
+    }
+    if let Some(done) = current {
+        out.push(done);
     }
     out
 }
@@ -90,11 +147,25 @@ fn labelled_block(body: &str, label: &str) -> Option<serde_json::Value> {
         .collect::<Vec<_>>()
         .join("\n");
 
-    // `unixtimestamp` is a placeholder the document writes where a number
-    // belongs. Nothing else in these specs is unquoted-non-JSON.
-    let cleaned = cleaned.replace("unixtimestamp", "0");
+    // Bare placeholders the documents write where a number belongs. The
+    // list used to be one entry with a comment claiming nothing else in
+    // these specifications was unquoted-non-JSON. `blocknumber` was, in
+    // NWC-03, and the claim was written by someone who had read one
+    // document.
+    let cleaned = cleaned.replace("unixtimestamp", "0").replace("blocknumber", "0");
     let cleaned = trailing_commas(&cleaned);
-    serde_json::from_str(&cleaned).ok()
+
+    // **Loud, not `.ok()`.** A labelled block that does not parse is a
+    // placeholder we have not seen or a defect in the document, and
+    // swallowing it drops a vector silently — which is exactly what
+    // happened: `hold_invoice_accepted` had no vector from the day NWC-03
+    // was adopted, because `blocknumber` failed here and nothing said so.
+    // A generator that quietly produces fewer vectors is worse than one
+    // that stops.
+    match serde_json::from_str(&cleaned) {
+        Ok(v) => Some(v),
+        Err(e) => panic!("a labelled block does not parse as JSON: {e}\n{cleaned}"),
+    }
 }
 
 /// jsonc and yaml tolerate a trailing comma before a close; json does not.

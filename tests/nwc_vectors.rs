@@ -10,7 +10,7 @@
 //! JSON and the generated vector failed.
 
 use nostr_ln::nwc::methods::*;
-use nostr_ln::nwc::WalletMethod;
+use nostr_ln::nwc::{WalletMethod, WalletNotificationType};
 use serde_json::Value;
 
 fn vectors() -> Vec<Value> {
@@ -70,6 +70,10 @@ fn every_method_we_claim_has_a_vector() {
 #[test]
 fn every_vector_is_a_method_we_claim() {
     for v in vectors() {
+        // Notifications are vectors too since 25.2, and are not methods.
+        if v["kind"] == "notification" {
+            continue;
+        }
         let name = v["name"].as_str().unwrap();
         let m: WalletMethod = name.parse().unwrap();
         assert!(
@@ -127,11 +131,92 @@ fn pay_onchain_round_trips() {
     round_trip::<PayOnchainResponse>("pay_onchain", "response", "result");
 }
 
+// ── the adopted extensions ───────────────────────────────────────────
+
+#[test]
+fn pay_keysend_round_trips() {
+    round_trip::<PayKeysendRequest>("pay_keysend", "request", "params");
+    round_trip::<PayKeysendResponse>("pay_keysend", "response", "result");
+}
+
+#[test]
+fn list_transactions_round_trips() {
+    round_trip::<ListTransactionsRequest>("list_transactions", "request", "params");
+    round_trip::<ListTransactionsResponse>("list_transactions", "response", "result");
+}
+
+#[test]
+fn the_hold_invoice_methods_round_trip() {
+    round_trip::<MakeHoldInvoiceRequest>("make_hold_invoice", "request", "params");
+    round_trip::<MakeHoldInvoiceResponse>("make_hold_invoice", "response", "result");
+    round_trip::<SettleHoldInvoiceRequest>("settle_hold_invoice", "request", "params");
+    round_trip::<CancelHoldInvoiceRequest>("cancel_hold_invoice", "request", "params");
+}
+
+// ── ours ─────────────────────────────────────────────────────────────
+
+#[test]
+fn the_onchain_methods_round_trip() {
+    round_trip::<MakeNewAddressRequest>("make_new_address", "request", "params");
+    round_trip::<MakeNewAddressResponse>("make_new_address", "response", "result");
+    round_trip::<LookupAddressRequest>("lookup_address", "request", "params");
+    round_trip::<LookupAddressResponse>("lookup_address", "response", "result");
+    round_trip::<ListAddressesRequest>("list_addresses", "request", "params");
+    round_trip::<ListAddressesResponse>("list_addresses", "response", "result");
+    round_trip::<EstimateOnchainFeesRequest>("estimate_onchain_fees", "request", "params");
+    round_trip::<EstimateOnchainFeesResponse>("estimate_onchain_fees", "response", "result");
+}
+
+#[test]
+fn list_invoices_round_trips() {
+    round_trip::<ListInvoicesRequest>("list_invoices", "request", "params");
+    round_trip::<ListInvoicesResponse>("list_invoices", "response", "result");
+}
+
+#[test]
+fn the_bip321_methods_round_trip() {
+    round_trip::<PayBip321Request>("pay_bip321", "request", "params");
+    round_trip::<PayBip321Response>("pay_bip321", "response", "result");
+    round_trip::<MakeBip321Request>("make_bip321", "request", "params");
+    round_trip::<MakeBip321Response>("make_bip321", "response", "result");
+}
+
+// ── notifications ────────────────────────────────────────────────────
+
+#[test]
+fn every_notification_we_claim_has_a_vector() {
+    // Until 25.2 none of them did. The generator read `Request:` and
+    // `Response:` blocks and a notification has neither, so the payload
+    // types were checked against nothing — and `hold_invoice_accepted`
+    // was missing `metadata` for as long as it existed.
+    let names: Vec<String> = vectors()
+        .iter()
+        .filter(|v| v["kind"] == "notification")
+        .map(|v| v["name"].as_str().unwrap().to_string())
+        .collect();
+    for n in WalletNotificationType::ALL {
+        assert!(
+            names.contains(&n.as_str().to_string()),
+            "{} has no vector",
+            n.as_str()
+        );
+    }
+}
+
+#[test]
+fn the_notifications_round_trip() {
+    round_trip::<HoldInvoiceAccepted>("hold_invoice_accepted", "notification", "notification");
+    round_trip::<PaymentReceived>("payment_received", "notification", "notification");
+    round_trip::<PaymentSent>("payment_sent", "notification", "notification");
+}
+
 #[test]
 fn get_balance_has_one_field_as_published_core_defines_it() {
-    // Our forked 47.md adds lightning_balance and onchain_balance_sats.
-    // That is divergence inside core; 18.2 decides whether it becomes an
-    // extension. This asserts we did not carry it over by habit.
+    // Our forked 47.md added lightning_balance and onchain_balance_sats.
+    // 25.1 settled it: they are an extension, defined by `nwc-onchain.md`
+    // and optional on the type. So the *vector* — which comes from
+    // published core — still has exactly one field, and this asserts the
+    // extension did not leak back into core by habit.
     let v = find("get_balance");
     let result = v["response"]["result"].as_object().unwrap();
     assert_eq!(

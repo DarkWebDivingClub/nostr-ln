@@ -62,13 +62,35 @@ pub enum WalletMethod {
     /// Ours, and proposed rather than adopted. See `nwc-route.md`.
     QuotePayment,
 
+    // ── NWC-04, Keysend; NWC-05, Transaction History ─────────────────
+    /// Send a spontaneous payment to a public key. NWC-04.
+    PayKeysend,
+    /// Payment history. NWC-05.
+    ListTransactions,
+
+    // ── Ours, drafted in `nips` ──────────────────────────────────────
+    /// Generate a receiving address. See `nwc-onchain.md`.
+    MakeNewAddress,
+    /// What an address has received. See `nwc-onchain.md`.
+    LookupAddress,
+    /// Addresses this wallet generated. See `nwc-onchain.md`.
+    ListAddresses,
+    /// Fee rates by confirmation target. See `nwc-onchain.md`.
+    EstimateOnchainFees,
+    /// Invoice entities with state. See `nwc-invoices.md`.
+    ListInvoices,
+    /// Pay a BIP-321 URI. See `nwc-bip321.md`.
+    PayBip321,
+    /// Generate a BIP-321 URI. See `nwc-bip321.md`.
+    MakeBip321,
+
     /// A method this implementation does not know.
     Unknown(String),
 }
 
 impl WalletMethod {
     /// Every method this crate knows. Excludes [`WalletMethod::Unknown`].
-    pub const ALL: [WalletMethod; 10] = [
+    pub const ALL: [WalletMethod; 19] = [
         WalletMethod::PayInvoice,
         WalletMethod::MakeInvoice,
         WalletMethod::LookupInvoice,
@@ -79,6 +101,15 @@ impl WalletMethod {
         WalletMethod::SettleHoldInvoice,
         WalletMethod::CancelHoldInvoice,
         WalletMethod::QuotePayment,
+        WalletMethod::PayKeysend,
+        WalletMethod::ListTransactions,
+        WalletMethod::MakeNewAddress,
+        WalletMethod::LookupAddress,
+        WalletMethod::ListAddresses,
+        WalletMethod::EstimateOnchainFees,
+        WalletMethod::ListInvoices,
+        WalletMethod::PayBip321,
+        WalletMethod::MakeBip321,
     ];
 
     /// Every method published NIP-47 core defines.
@@ -113,6 +144,15 @@ impl WalletMethod {
             WalletMethod::SettleHoldInvoice => "settle_hold_invoice",
             WalletMethod::CancelHoldInvoice => "cancel_hold_invoice",
             WalletMethod::QuotePayment => "quote_payment",
+            WalletMethod::PayKeysend => "pay_keysend",
+            WalletMethod::ListTransactions => "list_transactions",
+            WalletMethod::MakeNewAddress => "make_new_address",
+            WalletMethod::LookupAddress => "lookup_address",
+            WalletMethod::ListAddresses => "list_addresses",
+            WalletMethod::EstimateOnchainFees => "estimate_onchain_fees",
+            WalletMethod::ListInvoices => "list_invoices",
+            WalletMethod::PayBip321 => "pay_bip321",
+            WalletMethod::MakeBip321 => "make_bip321",
             WalletMethod::Unknown(s) => s,
         }
     }
@@ -141,6 +181,15 @@ impl FromStr for WalletMethod {
             "settle_hold_invoice" => WalletMethod::SettleHoldInvoice,
             "cancel_hold_invoice" => WalletMethod::CancelHoldInvoice,
             "quote_payment" => WalletMethod::QuotePayment,
+            "pay_keysend" => WalletMethod::PayKeysend,
+            "list_transactions" => WalletMethod::ListTransactions,
+            "make_new_address" => WalletMethod::MakeNewAddress,
+            "lookup_address" => WalletMethod::LookupAddress,
+            "list_addresses" => WalletMethod::ListAddresses,
+            "estimate_onchain_fees" => WalletMethod::EstimateOnchainFees,
+            "list_invoices" => WalletMethod::ListInvoices,
+            "pay_bip321" => WalletMethod::PayBip321,
+            "make_bip321" => WalletMethod::MakeBip321,
             other => WalletMethod::Unknown(other.to_string()),
         })
     }
