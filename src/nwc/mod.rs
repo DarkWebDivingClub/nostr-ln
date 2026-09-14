@@ -64,3 +64,47 @@ impl std::str::FromStr for WalletNotificationType {
         })
     }
 }
+
+impl serde::Serialize for WalletNotificationType {
+    fn serialize<S: serde::Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
+        s.serialize_str(self.as_str())
+    }
+}
+
+impl<'de> serde::Deserialize<'de> for WalletNotificationType {
+    fn deserialize<D: serde::Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
+        let s: String = serde::Deserialize::deserialize(d)?;
+        Ok(s.parse().expect("infallible"))
+    }
+}
+
+/// A kind `23197` payload.
+///
+/// The wallet counterpart of [`crate::nnc::Notification`], and the same
+/// shape: NIP-47 and NIP-XX agree on `notification_type` plus an untyped
+/// payload, so a client reads the type and then reads the payload as what
+/// the type says it is.
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct WalletNotification {
+    /// Which notification.
+    pub notification_type: WalletNotificationType,
+    /// Its payload.
+    pub notification: serde_json::Value,
+}
+
+impl WalletNotification {
+    /// Build one with a typed payload.
+    pub fn new<N: serde::Serialize>(
+        notification_type: WalletNotificationType,
+        notification: N,
+    ) -> Result<Self, serde_json::Error> {
+        Ok(Self { notification_type, notification: serde_json::to_value(notification)? })
+    }
+
+    /// Read the payload as its type.
+    pub fn as_typed<N: for<'de> serde::Deserialize<'de>>(
+        &self,
+    ) -> Result<N, serde_json::Error> {
+        serde_json::from_value(self.notification.clone())
+    }
+}

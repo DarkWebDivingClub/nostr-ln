@@ -20,7 +20,7 @@ use nostr_sdk::prelude::*;
 use super::handler::{ControlService, WalletService};
 use super::pipeline::{self, Handler};
 use super::state::Usage;
-use crate::nnc::{ErrorCode, Method, NncError, Notification, Request, Response};
+use crate::nnc::{ErrorCode, Method, NncError, Request, Response};
 use crate::{Grants, Subscriptions, GRANT_KIND, SUBSCRIPTION_KIND};
 
 /// How often to look for a relay that has come back.
@@ -43,6 +43,8 @@ pub const CONTROL_REQUEST_KIND: u16 = 23198;
 pub const CONTROL_RESPONSE_KIND: u16 = 23199;
 /// NNC notification, kind 23200.
 pub const NOTIFICATION_KIND: u16 = 23200;
+/// NWC notification, kind 23197.
+pub const WALLET_NOTIFICATION_KIND: u16 = 23197;
 
 /// What can go wrong starting or running a service.
 #[derive(Debug)]
@@ -150,6 +152,37 @@ impl Cause {
     }
 }
 
+/// A notification either protocol can deliver.
+///
+/// The delivery rule — who receives it, by which route, and what names the
+/// cause — is the same for a wallet as for a node. Only the kind and the
+/// payload type differ, so those are what this abstracts and everything
+/// else in [`Notifier`] is written once.
+pub trait Deliverable: serde::Serialize {
+    /// The event kind it is carried on.
+    const KIND: u16;
+
+    /// Its wire type name, which is what a subscription and a grant are
+    /// matched against.
+    fn type_str(&self) -> &str;
+}
+
+impl Deliverable for crate::nnc::Notification {
+    const KIND: u16 = NOTIFICATION_KIND;
+
+    fn type_str(&self) -> &str {
+        self.notification_type.as_str()
+    }
+}
+
+impl Deliverable for crate::nwc::WalletNotification {
+    const KIND: u16 = WALLET_NOTIFICATION_KIND;
+
+    fn type_str(&self) -> &str {
+        self.notification_type.as_str()
+    }
+}
+
 impl Notifier {
     /// Send a notification to one controller, naming what caused it.
     ///
@@ -158,10 +191,10 @@ impl Notifier {
     /// controller's subscription, an `e` tag naming the request, or both.
     /// The `a` tag is per recipient — it names *their* subscription, since
     /// a notification is addressed and encrypted to exactly one controller.
-    pub async fn notify(
+    pub async fn notify<N: Deliverable>(
         &self,
         to: &PublicKey,
-        notification: &Notification,
+        notification: &N,
         cause: Cause,
     ) -> Result<(), Error> {
         let json = serde_json::to_string(notification).map_err(|e| Error::Relay(e.to_string()))?;
@@ -185,7 +218,7 @@ impl Notifier {
                 None,
             ));
         }
-        let event = EventBuilder::new(Kind::Custom(NOTIFICATION_KIND), ciphertext).tags(tags);
+        let event = EventBuilder::new(Kind::Custom(N::KIND), ciphertext).tags(tags);
         self.client.send_event_builder(event).await.map_err(relay_err)?;
         Ok(())
     }
@@ -219,12 +252,12 @@ impl Notifier {
     /// silently revokes a subscription the controller never withdrew.
     ///
     /// Returns how many controllers it reached.
-    pub async fn deliver(
+    pub async fn deliver<N: Deliverable>(
         &self,
-        notification: &Notification,
+        notification: &N,
         caller: Option<(PublicKey, EventId)>,
     ) -> Result<usize, Error> {
-        let ty = notification.notification_type.as_str().to_string();
+        let ty = notification.type_str().to_string();
         // Computed under the lock and released before any send, so a
         // handler delivering from inside a request cannot stall the loop.
         let subscribers: Vec<PublicKey> = {
@@ -268,7 +301,7 @@ impl Notifier {
     ///
     /// Returns how many controllers it reached. Zero is normal and not an
     /// error: nobody is subscribed.
-    pub async fn announce(&self, notification: &Notification) -> Result<usize, Error> {
+    pub async fn announce<N: Deliverable>(&self, notification: &N) -> Result<usize, Error> {
         self.deliver(notification, None).await
     }
 }
