@@ -90,6 +90,33 @@ impl WalletService for Stub {
         })
     }
 
+    fn make_offer<'a>(&'a self, _r: MakeOfferRequest, _c: Caller<'a>)
+        -> Fut<'a, Result<MakeOfferResponse, NncError>>
+    {
+        Box::pin(async move {
+            self.ran("make_offer");
+            Ok(MakeOfferResponse {
+                offer_id: "00".repeat(32),
+                offer: "lno1".into(),
+                amount: None,
+                description: None,
+                issuer: None,
+                single_use: false,
+                created_at: 0,
+                expires_at: None,
+            })
+        })
+    }
+
+    fn disable_offer<'a>(&'a self, _r: DisableOfferRequest, _c: Caller<'a>)
+        -> Fut<'a, Result<DisableOfferResponse, NncError>>
+    {
+        Box::pin(async move {
+            self.ran("disable_offer");
+            Ok(DisableOfferResponse {})
+        })
+    }
+
     fn quote_payment<'a>(&'a self, _r: QuotePaymentRequest, _c: Caller<'a>)
         -> Fut<'a, Result<QuotePaymentResponse, NncError>>
     {
@@ -190,8 +217,10 @@ fn an_adopted_extension_is_advertised_like_core() {
         m,
         vec![
             "cancel_hold_invoice",
+            "disable_offer",
             "get_balance",
             "make_hold_invoice",
+            "make_offer",
             "quote_payment",
             "settle_hold_invoice",
         ],
@@ -266,6 +295,53 @@ async fn a_control_grant_does_not_authorise_a_wallet_extension() {
     let stub = Stub::default();
     let e = run(&mut w, &stub, WalletMethod::MakeHoldInvoice, a_hold()).await.unwrap_err();
     assert_eq!(e.code, ErrorCode::Restricted, "administering does not make you a spender");
+}
+
+#[tokio::test]
+async fn implementing_one_offer_method_advertises_one_offer_method() {
+    // The crate types five offer-adjacent methods across NWC-12 and
+    // `nwc-offers.md`. A wallet that implements two must not appear to
+    // serve the family: kind 13194 is generated from the impl block, so
+    // this is the property that keeps a declaration honest as the method
+    // set grows.
+    let stub = Stub::default();
+    assert!(stub.methods().contains(&"make_offer"));
+    assert!(stub.methods().contains(&"disable_offer"));
+    for absent in ["pay_offer", "list_offers", "lookup_payment"] {
+        assert!(
+            !stub.methods().contains(&absent),
+            "{absent} is typed by the crate and not implemented here, so it \
+             must not be advertised"
+        );
+    }
+}
+
+#[tokio::test]
+async fn a_grant_may_name_one_offer_method_without_naming_its_siblings() {
+    // The same rule as the hold-invoice trio, restated because the offer
+    // family is where it bites hardest: an owner granting the ability to
+    // *create* an offer has not granted the ability to retire one, and
+    // `disable_offer` is the irreversible half.
+    let mut w = world(r#"{"methods":{"make_offer":{}}}"#);
+    let stub = Stub::default();
+    assert!(run(&mut w, &stub, WalletMethod::MakeOffer, json!({})).await.is_ok());
+    let e = run(&mut w, &stub, WalletMethod::DisableOffer, json!({"offer_id": "00".repeat(32)}))
+        .await
+        .unwrap_err();
+    assert_eq!(e.code, ErrorCode::Restricted);
+    assert_eq!(stub.executes(), 1, "and the handler was not reached");
+}
+
+#[tokio::test]
+async fn a_method_the_crate_types_but_the_wallet_lacks_is_not_implemented() {
+    let mut w = world(FULL);
+    let stub = Stub::default();
+    let e = run(&mut w, &stub, WalletMethod::ListOffers, json!({})).await.unwrap_err();
+    assert_eq!(
+        e.code,
+        ErrorCode::NotImplemented,
+        "typed by the crate is not the same as served by this wallet"
+    );
 }
 
 // ── validate ─────────────────────────────────────────────────────────

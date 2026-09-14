@@ -289,6 +289,21 @@ fn get_balance_has_one_field_as_published_core_defines_it() {
 }
 
 #[test]
+fn a_wallet_with_no_extension_answers_get_balance_as_core_defines_it() {
+    // The two `nwc-onchain.md` fields are optional and skipped when unset,
+    // so a wallet implementing no extension must serialise exactly what
+    // published core defines. Otherwise adding a field to a core response
+    // makes every wallet claim an extension it does not have.
+    let plain = GetBalanceResponse { balance: 10_000, ..Default::default() };
+    let encoded = serde_json::to_value(&plain).unwrap();
+    assert_eq!(
+        encoded,
+        serde_json::json!({ "balance": 10_000 }),
+        "an extension field must be absent, not null"
+    );
+}
+
+#[test]
 fn the_error_codes_the_specifications_name_have_variants() {
     use nostr_ln::nnc::ErrorCode;
     // Published NIP-47 core's list, plus the two nwc-onchain.md adds.
@@ -308,6 +323,9 @@ fn the_error_codes_the_specifications_name_have_variants() {
         "PAYMENT_FAILED",
         "BAD_REQUEST",
         "UNSUPPORTED_NETWORK",
+        // NWC-09's two.
+        "MULTIPLE_MATCHES",
+        "UNSUPPORTED_PAYMENT_TYPE",
     ] {
         let parsed: ErrorCode =
             serde_json::from_value(serde_json::json!(code)).expect("decodes");
