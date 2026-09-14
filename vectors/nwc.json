@@ -156,6 +156,86 @@
         "result_type": "pay_onchain"
       },
       "source": "/home/rene/git/nips/nwc-onchain.md"
+    },
+    {
+      "kind": "method",
+      "name": "make_hold_invoice",
+      "request": {
+        "method": "make_hold_invoice",
+        "params": {
+          "amount": 123,
+          "description": "string",
+          "description_hash": "string",
+          "expiry": 213,
+          "payment_hash": "string",
+          "min_cltv_expiry_delta": 144
+        }
+      },
+      "response": {
+        "result_type": "make_hold_invoice",
+        "result": {
+          "type": "incoming",
+          "invoice": "string",
+          "description": "string",
+          "description_hash": "string",
+          "payment_hash": "string",
+          "amount": 123,
+          "created_at": 1700000000,
+          "expires_at": 1700003600
+        }
+      },
+      "source": "/tmp/claude-1000/-home-rene-workspaces-x-h3-se-wks/e426c455-73c7-4c52-b771-d169065350ca/scratchpad/nwc/03.md"
+    },
+    {
+      "kind": "method",
+      "name": "cancel_hold_invoice",
+      "request": {
+        "method": "cancel_hold_invoice",
+        "params": {
+          "payment_hash": "string"
+        }
+      },
+      "response": {
+        "result_type": "cancel_hold_invoice",
+        "result": {}
+      },
+      "source": "/tmp/claude-1000/-home-rene-workspaces-x-h3-se-wks/e426c455-73c7-4c52-b771-d169065350ca/scratchpad/nwc/03.md"
+    },
+    {
+      "kind": "method",
+      "name": "settle_hold_invoice",
+      "request": {
+        "method": "settle_hold_invoice",
+        "params": {
+          "preimage": "string"
+        }
+      },
+      "response": {
+        "result_type": "settle_hold_invoice",
+        "result": {}
+      },
+      "source": "/tmp/claude-1000/-home-rene-workspaces-x-h3-se-wks/e426c455-73c7-4c52-b771-d169065350ca/scratchpad/nwc/03.md"
+    },
+    {
+      "kind": "method",
+      "name": "quote_payment",
+      "request": {
+        "method": "quote_payment",
+        "params": {
+          "invoice": "lnbc...",
+          "amount": 123000
+        }
+      },
+      "response": {
+        "result_type": "quote_payment",
+        "result": {
+          "amount": 123000,
+          "fee_msat": 1200,
+          "cltv_expiry_delta": 144,
+          "route_found": true
+        }
+      },
+      "source": "/home/rene/git/nips/nwc-route.md"
     }
   ]
 }

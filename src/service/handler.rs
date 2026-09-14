@@ -174,6 +174,14 @@ pub trait WalletService: Send + Sync {
         get_info(GetInfoRequest) -> GetInfoResponse,
         /// Send an on-chain payment. See `nwc-onchain.md`.
         pay_onchain(PayOnchainRequest) -> PayOnchainResponse,
+        /// Create a hold invoice for a hash generated elsewhere. NWC-03.
+        make_hold_invoice(MakeHoldInvoiceRequest) -> MakeHoldInvoiceResponse,
+        /// Settle one with the preimage. NWC-03.
+        settle_hold_invoice(SettleHoldInvoiceRequest) -> SettleHoldInvoiceResponse,
+        /// Cancel one, releasing the payer. NWC-03.
+        cancel_hold_invoice(CancelHoldInvoiceRequest) -> CancelHoldInvoiceResponse,
+        /// What a payment would cost, without sending it. See `nwc-route.md`.
+        quote_payment(QuotePaymentRequest) -> QuotePaymentResponse,
     }
 
     /// As [`ControlService::prepare`].

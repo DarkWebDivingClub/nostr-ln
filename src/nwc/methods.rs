@@ -165,3 +165,156 @@ pub struct PayOnchainResponse {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub fee_sats: Option<u64>,
 }
+
+// ── NWC-03, Hold Invoices ───────────────────────────────────────────────
+
+/// `make_hold_invoice` request.
+///
+/// The caller supplies a **payment hash**, never a preimage. The secret
+/// belongs to whoever generated it — which is the whole point: a hold
+/// invoice locks to a payment that someone else will settle.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct MakeHoldInvoiceRequest {
+    /// Value in msats.
+    pub amount: u64,
+    /// The hash to lock to. Generated elsewhere.
+    pub payment_hash: String,
+    /// Invoice description.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+    /// Hash of a description too long to carry.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub description_hash: Option<String>,
+    /// Seconds from creation within which a payment must be **initiated**.
+    ///
+    /// This is not how long the payment may be held — see
+    /// `settle_deadline` on the acceptance notification, which is what
+    /// bounds that.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub expiry: Option<u64>,
+    /// Minimum CLTV delta for the final hop.
+    ///
+    /// A caller that must settle this invoice only after completing some
+    /// other payment sets this above that payment's own cost, so its
+    /// claim outlives its obligation.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub min_cltv_expiry_delta: Option<u32>,
+}
+
+/// `make_hold_invoice` response.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct MakeHoldInvoiceResponse {
+    /// Always `incoming` for an invoice.
+    #[serde(rename = "type")]
+    pub kind: String,
+    /// The encoded invoice.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub invoice: Option<String>,
+    /// The hash it locks to — the one the caller supplied.
+    pub payment_hash: String,
+    /// Value in msats.
+    pub amount: u64,
+    /// When it was created.
+    pub created_at: u64,
+    /// When it stops accepting a payment.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub expires_at: Option<u64>,
+    /// Invoice description.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+    /// Hash of a description too long to carry.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub description_hash: Option<String>,
+}
+
+/// `settle_hold_invoice` request.
+///
+/// Identified by the preimage alone — producing it *is* the authorisation,
+/// and it determines which invoice is meant.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SettleHoldInvoiceRequest {
+    /// The preimage. Producing it is the authorisation.
+    pub preimage: String,
+}
+
+/// `settle_hold_invoice` response. Empty by specification.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SettleHoldInvoiceResponse {}
+
+/// `cancel_hold_invoice` request.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CancelHoldInvoiceRequest {
+    /// Which invoice to cancel.
+    pub payment_hash: String,
+}
+
+/// `cancel_hold_invoice` response. Empty by specification.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CancelHoldInvoiceResponse {}
+
+// ── NWC-XX, Payment Quotation (`nwc-route.md`) ──────────────────────────
+
+/// `quote_payment` request.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct QuotePaymentRequest {
+    /// The invoice that would be paid.
+    pub invoice: String,
+    /// Required only where the invoice carries no amount.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub amount: Option<u64>,
+}
+
+/// `quote_payment` response.
+///
+/// **An estimate, never a guarantee.** Gossip carries channel capacities
+/// rather than balances, so a route that looks viable may fail, and a
+/// later `pay_invoice` may cost more than this reported.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct QuotePaymentResponse {
+    /// Msats that would reach the destination.
+    pub amount: u64,
+    /// Routing fee the wallet expects to pay.
+    pub fee_msat: u64,
+    /// Blocks the route would consume, **excluding** the invoice's own
+    /// final CLTV.
+    pub cltv_expiry_delta: u32,
+    /// Whether a route was found at all. `false` with the other fields
+    /// zeroed is a result, not an error — "cannot reach" is what the
+    /// caller asked.
+    pub route_found: bool,
+}
+
+/// The `hold_invoice_accepted` notification payload. NWC-03.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct HoldInvoiceAccepted {
+    /// Always `incoming`.
+    #[serde(rename = "type")]
+    pub kind: String,
+    /// `accepted`, where the wallet reports one.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub state: Option<String>,
+    /// The encoded invoice.
+    pub invoice: String,
+    /// The hash it locks to.
+    pub payment_hash: String,
+    /// Value in msats.
+    pub amount: u64,
+    /// When the invoice was created.
+    pub created_at: u64,
+    /// When the invoice stops accepting a payment.
+    pub expires_at: u64,
+    /// **The block by which this must be settled or cancelled.**
+    ///
+    /// Past it, neither is safe: the HTLC can expire on the payer's side
+    /// while the recipient still believes it holds. A recipient waiting on
+    /// something else — another payment, a counterparty — must finish
+    /// before this, not merely intend to.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub settle_deadline: Option<u64>,
+    /// Invoice description.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+    /// Hash of a description too long to carry.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub description_hash: Option<String>,
+}

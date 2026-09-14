@@ -44,19 +44,41 @@ pub enum WalletMethod {
     /// specification. See `nwc-onchain.md`.
     PayOnchain,
 
+    // ── NWC-03, Hold Invoices ────────────────────────────────────────
+    /// Create a hold invoice for a payment hash generated elsewhere.
+    ///
+    /// The caller supplies the **hash**, not the preimage: the secret
+    /// belongs to whoever made it, which is what lets a hold invoice lock
+    /// to a payment someone else will settle.
+    MakeHoldInvoice,
+    /// Settle one, with the preimage.
+    SettleHoldInvoice,
+    /// Cancel one, releasing the payer's funds.
+    CancelHoldInvoice,
+
+    // ── NWC-XX, Payment Quotation (`nwc-route.md`) ───────────────────
+    /// What a payment would cost, without sending it.
+    ///
+    /// Ours, and proposed rather than adopted. See `nwc-route.md`.
+    QuotePayment,
+
     /// A method this implementation does not know.
     Unknown(String),
 }
 
 impl WalletMethod {
     /// Every method this crate knows. Excludes [`WalletMethod::Unknown`].
-    pub const ALL: [WalletMethod; 6] = [
+    pub const ALL: [WalletMethod; 10] = [
         WalletMethod::PayInvoice,
         WalletMethod::MakeInvoice,
         WalletMethod::LookupInvoice,
         WalletMethod::GetBalance,
         WalletMethod::GetInfo,
         WalletMethod::PayOnchain,
+        WalletMethod::MakeHoldInvoice,
+        WalletMethod::SettleHoldInvoice,
+        WalletMethod::CancelHoldInvoice,
+        WalletMethod::QuotePayment,
     ];
 
     /// Every method published NIP-47 core defines.
@@ -87,6 +109,10 @@ impl WalletMethod {
             WalletMethod::GetBalance => "get_balance",
             WalletMethod::GetInfo => "get_info",
             WalletMethod::PayOnchain => "pay_onchain",
+            WalletMethod::MakeHoldInvoice => "make_hold_invoice",
+            WalletMethod::SettleHoldInvoice => "settle_hold_invoice",
+            WalletMethod::CancelHoldInvoice => "cancel_hold_invoice",
+            WalletMethod::QuotePayment => "quote_payment",
             WalletMethod::Unknown(s) => s,
         }
     }
@@ -111,6 +137,10 @@ impl FromStr for WalletMethod {
             "get_balance" => WalletMethod::GetBalance,
             "get_info" => WalletMethod::GetInfo,
             "pay_onchain" => WalletMethod::PayOnchain,
+            "make_hold_invoice" => WalletMethod::MakeHoldInvoice,
+            "settle_hold_invoice" => WalletMethod::SettleHoldInvoice,
+            "cancel_hold_invoice" => WalletMethod::CancelHoldInvoice,
+            "quote_payment" => WalletMethod::QuotePayment,
             other => WalletMethod::Unknown(other.to_string()),
         })
     }

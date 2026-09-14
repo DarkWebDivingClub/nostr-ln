@@ -35,3 +35,11 @@ transport = ["dep:nostr-sdk", "dep:tokio", "dep:futures"]
 serde_json = "1"
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "time"] }
 trybuild = "1"
+
+# The compile-fail test asserts that a notification cannot be built without
+# naming its cause — the rule mission 17.3 exists to enforce. `Cause` lives
+# behind the `transport` feature, so without this the test fails on an
+# unresolved import and stops checking the thing it was written for.
+[[test]]
+name = "compile_fail"
+required-features = ["transport"]

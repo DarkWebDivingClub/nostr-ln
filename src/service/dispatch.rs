@@ -89,5 +89,9 @@ pub async fn dispatch_wallet(
         get_balance => GetBalance,
         get_info => GetInfo,
         pay_onchain => PayOnchain,
+        make_hold_invoice => MakeHoldInvoice,
+        settle_hold_invoice => SettleHoldInvoice,
+        cancel_hold_invoice => CancelHoldInvoice,
+        quote_payment => QuotePayment,
     )
 }

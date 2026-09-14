@@ -212,6 +212,10 @@ fn validate(handler: &Handler<'_>, method: &Method, params: &Value) -> Result<()
             crate::nwc::WalletMethod::GetBalance => check::<w::GetBalanceRequest>(params),
             crate::nwc::WalletMethod::GetInfo => check::<w::GetInfoRequest>(params),
             crate::nwc::WalletMethod::PayOnchain => check::<w::PayOnchainRequest>(params),
+            crate::nwc::WalletMethod::MakeHoldInvoice => check::<w::MakeHoldInvoiceRequest>(params),
+            crate::nwc::WalletMethod::SettleHoldInvoice => check::<w::SettleHoldInvoiceRequest>(params),
+            crate::nwc::WalletMethod::CancelHoldInvoice => check::<w::CancelHoldInvoiceRequest>(params),
+            crate::nwc::WalletMethod::QuotePayment => check::<w::QuotePaymentRequest>(params),
             // An extension we have not adopted. Dispatch answers
             // NOT_IMPLEMENTED; there is no type here to check against.
             crate::nwc::WalletMethod::Unknown(n) => Err(NncError::not_implemented(&n)),
