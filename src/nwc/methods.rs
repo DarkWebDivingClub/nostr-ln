@@ -152,7 +152,7 @@ pub struct GetInfoResponse {
     pub extensions: Option<Vec<String>>,
     /// Which BIP-321 instruction types this wallet pays. **`nwc-bip321.md`.**
     ///
-    /// The capability discovery a polymorphic `pay_bip321` cannot carry:
+    /// The capability discovery a polymorphic `pay` cannot carry:
     /// implementing the method says nothing about which instructions the
     /// wallet will actually pay.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -623,35 +623,73 @@ pub struct ListInvoicesResponse {
 
 // ── `nwc-bip321.md` ─────────────────────────────────────────────────────
 
-/// `pay_bip321` request.
+/// `pay` request. NWC-321.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct PayBip321Request {
-    /// The `bitcoin:` URI.
-    pub uri: String,
+pub struct PayRequest {
+    /// The BIP-321 URI.
+    ///
+    /// Named `payment` by NWC-321, not `uri`.
+    pub payment: String,
+    /// Msats, required where the selected instruction carries no amount.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub amount: Option<u64>,
+    /// The most the sender will pay in routing fees, msats.
+    ///
+    /// **A wallet that honours this MUST return `fees_paid`**, and one
+    /// that does not MUST ignore the parameter — so "not implemented" and
+    /// "implemented and free" do not look alike to a client reconciling
+    /// against a budget.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub max_fee: Option<u64>,
+    /// A message for the payee. The selected instruction must support one.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub payer_note: Option<String>,
+    /// Application-defined metadata. NWC-06.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub metadata: Option<Value>,
 }
 
-/// `pay_bip321` response.
+/// `pay` response. NWC-321.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct PayBip321Response {
-    /// Which instruction was used.
+pub struct PayResponse {
+    /// Wallet-scoped, and the same id `lookup_payment` takes.
+    pub transaction_id: String,
+    /// `pending`, `settled` or `failed`.
+    pub state: String,
+    /// Which instruction was paid.
     ///
-    /// **Required**, because the outcomes differ in kind: a Lightning
-    /// payment is final on the preimage, an on-chain one still needs
-    /// confirmations. A caller that assumed one and got the other would
-    /// report success too early.
-    pub payment_method: String,
-    /// Present for `bolt11` and `bolt12`.
+    /// NWC-321 defines `bolt11` and `bolt12`. `nwc-bip321.md` adds
+    /// `onchain` and `sp` for a wallet that declares them — and the
+    /// distinction is load-bearing, because a Lightning payment is final
+    /// on the preimage while an on-chain one still needs confirmations.
+    pub instruction_type: String,
+    /// Msats paid.
+    pub amount: u64,
+    /// Msats in fees.
+    pub fees_paid: u64,
+    /// Present when the wallet has it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub payment_hash: Option<String>,
+    /// Present for a Lightning instruction.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub preimage: Option<String>,
-    /// Present for `onchain` and `sp`.
+    /// BOLT12 payer proof.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub payer_proof: Option<String>,
+    /// Present for an on-chain or silent-payment instruction.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub txid: Option<String>,
-    /// Fees in msats.
+    /// Required when `state` is `failed`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub fees_paid: Option<u64>,
+    pub failure_reason: Option<String>,
+    /// When the wallet created the record.
+    pub created_at: u64,
+    /// Required when `state` is `settled`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub settled_at: Option<u64>,
 }
 
-/// One instruction to include in a generated URI.
+/// One instruction to include in a generated URI. `nwc-bip321.md`.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Bip321Method {
     /// `bolt11`, `bolt12`, `sp` or `onchain`.
@@ -664,28 +702,42 @@ pub struct Bip321Method {
     pub address_type: Option<String>,
 }
 
-/// `make_bip321` request.
+/// `receive` request. NWC-321, plus two fields from `nwc-bip321.md`.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
-pub struct MakeBip321Request {
-    /// Value in msats. Required for `bolt11`, which is skipped without it.
+pub struct ReceiveRequest {
+    /// Msats. Absent or null means the payer chooses.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub amount: Option<u64>,
-    /// Names the payee. Appears **only** in the URI's `label=`.
+    /// Goes into **each instruction that supports one**. NWC-321.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub label: Option<String>,
-    /// The URI message, and the invoice and offer description.
+    pub description: Option<String>,
+    /// Application-defined metadata. NWC-06.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub message: Option<String>,
-    /// Ordered: the payee's preference. Everything available when absent.
+    pub metadata: Option<Value>,
+    /// Which instructions to generate, in the payee's order of preference.
+    ///
+    /// **`nwc-bip321.md`.** Absent is NWC-321's behaviour exactly — the
+    /// wallet selects — which is the test of whether this is an extension
+    /// rather than a change.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub methods: Option<Vec<Bip321Method>>,
+    /// Names the payee, and appears **only** in the URI's `label=`.
+    ///
+    /// **`nwc-bip321.md`.** BIP-321 carries `label` and `message`
+    /// separately; NWC-321's `description` is `message`'s job, so nothing
+    /// in NWC-321 sets this.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub label: Option<String>,
 }
 
-/// `make_bip321` response.
+/// `receive` response. NWC-321.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct MakeBip321Response {
-    /// The generated URI.
-    pub uri: String,
+pub struct ReceiveResponse {
+    /// The generated URI. Named `bip321` by NWC-321, not `uri`.
+    pub bip321: String,
+    /// Present when the wallet keeps a record for it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub transaction_id: Option<String>,
 }
 
 /// What instruction types a wallet can pay. `get_info`, `nwc-bip321.md`.

@@ -196,10 +196,10 @@ pub trait WalletService: Send + Sync {
         estimate_onchain_fees(EstimateOnchainFeesRequest) -> EstimateOnchainFeesResponse,
         /// Invoice entities with state. See `nwc-invoices.md`.
         list_invoices(ListInvoicesRequest) -> ListInvoicesResponse,
-        /// Pay a BIP-321 URI. See `nwc-bip321.md`.
-        pay_bip321(PayBip321Request) -> PayBip321Response,
-        /// Generate a BIP-321 URI. See `nwc-bip321.md`.
-        make_bip321(MakeBip321Request) -> MakeBip321Response,
+        /// Pay one instruction from a BIP-321 URI. NWC-321.
+        pay(PayRequest) -> PayResponse,
+        /// Generate a BIP-321 URI. NWC-321.
+        receive(ReceiveRequest) -> ReceiveResponse,
         /// Create a BOLT12 offer. NWC-12.
         make_offer(MakeOfferRequest) -> MakeOfferResponse,
         /// Look up one payment record. NWC-09.

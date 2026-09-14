@@ -44,6 +44,15 @@ pub enum ErrorCode {
     /// The wallet does not support that `payment_type`. **NWC-09.**
     #[serde(rename = "UNSUPPORTED_PAYMENT_TYPE")]
     UnsupportedPaymentType,
+    /// No instruction in the URI is one this wallet can pay. **NWC-321.**
+    #[serde(rename = "UNSUPPORTED_PAYMENT_INSTRUCTION")]
+    UnsupportedPaymentInstruction,
+    /// No route fit `max_fee`, and **no payment was attempted**. NWC-321.
+    ///
+    /// Distinct from `PAYMENT_FAILED` for the reason that matters to a
+    /// caller: nothing was sent, so retrying with a larger budget is safe.
+    #[serde(rename = "FEE_LIMIT_EXCEEDED")]
+    FeeLimitExceeded,
     /// A channel operation could not be completed.
     #[serde(rename = "CHANNEL_FAILED")]
     ChannelFailed,
@@ -90,6 +99,8 @@ impl fmt::Display for ErrorCode {
             Self::NotFound => "NOT_FOUND",
             Self::MultipleMatches => "MULTIPLE_MATCHES",
             Self::UnsupportedPaymentType => "UNSUPPORTED_PAYMENT_TYPE",
+            Self::UnsupportedPaymentInstruction => "UNSUPPORTED_PAYMENT_INSTRUCTION",
+            Self::FeeLimitExceeded => "FEE_LIMIT_EXCEEDED",
             Self::ChannelFailed => "CHANNEL_FAILED",
             Self::ConnectionFailed => "CONNECTION_FAILED",
             Self::InsufficientBalance => "INSUFFICIENT_BALANCE",

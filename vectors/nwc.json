@@ -8,6 +8,7 @@
     "/home/rene/git/nwc/05.md",
     "/home/rene/git/nwc/09.md",
     "/home/rene/git/nwc/12.md",
+    "/home/rene/git/nwc/321.md",
     "/home/rene/git/nips/nwc-onchain.md",
     "/home/rene/git/nips/nwc-invoices.md",
     "/home/rene/git/nips/nwc-offers.md",
@@ -445,6 +446,58 @@
     },
     {
       "kind": "method",
+      "name": "pay",
+      "request": {
+        "method": "pay",
+        "params": {
+          "amount": 123000,
+          "max_fee": 1000,
+          "metadata": {},
+          "payer_note": "string",
+          "payment": "bitcoin:?lno=lno1..."
+        }
+      },
+      "response": {
+        "result": {
+          "amount": 123000,
+          "created_at": 0,
+          "failure_reason": "string",
+          "fees_paid": 1000,
+          "instruction_type": "bolt12",
+          "payer_proof": "lnp1...",
+          "payment_hash": "string",
+          "preimage": "string",
+          "settled_at": 0,
+          "state": "settled",
+          "transaction_id": "string",
+          "txid": "string"
+        },
+        "result_type": "pay"
+      },
+      "source": "/home/rene/git/nwc/321.md"
+    },
+    {
+      "kind": "method",
+      "name": "receive",
+      "request": {
+        "method": "receive",
+        "params": {
+          "amount": 123000,
+          "description": "string",
+          "metadata": {}
+        }
+      },
+      "response": {
+        "result": {
+          "bip321": "bitcoin:?lightning=lnbc...&lno=lno1...",
+          "transaction_id": "string"
+        },
+        "result_type": "receive"
+      },
+      "source": "/home/rene/git/nwc/321.md"
+    },
+    {
+      "kind": "method",
       "name": "pay_onchain",
       "request": {
         "method": "pay_onchain",
@@ -653,61 +706,6 @@
         "result_type": "disable_offer"
       },
       "source": "/home/rene/git/nips/nwc-offers.md"
-    },
-    {
-      "kind": "method",
-      "name": "pay_bip321",
-      "request": {
-        "method": "pay_bip321",
-        "params": {
-          "uri": "bitcoin:bc1q...?lightning=lnbc...&lno=lno1..."
-        }
-      },
-      "response": {
-        "result": {
-          "fees_paid": 100,
-          "payment_method": "bolt11",
-          "preimage": "0123...",
-          "txid": "abc123..."
-        },
-        "result_type": "pay_bip321"
-      },
-      "source": "/home/rene/git/nips/nwc-bip321.md"
-    },
-    {
-      "kind": "method",
-      "name": "make_bip321",
-      "request": {
-        "method": "make_bip321",
-        "params": {
-          "amount": 50000000,
-          "label": "Alice's Shop",
-          "message": "Order #123",
-          "methods": [
-            {
-              "expiry": 3600,
-              "method": "bolt11"
-            },
-            {
-              "method": "bolt12"
-            },
-            {
-              "method": "sp"
-            },
-            {
-              "address_type": "p2tr",
-              "method": "onchain"
-            }
-          ]
-        }
-      },
-      "response": {
-        "result": {
-          "uri": "bitcoin:bc1q...?amount=0.0005&label=...&lightning=lnbc..."
-        },
-        "result_type": "make_bip321"
-      },
-      "source": "/home/rene/git/nips/nwc-bip321.md"
     },
     {
       "kind": "method",

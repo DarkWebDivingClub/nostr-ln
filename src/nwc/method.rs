@@ -79,10 +79,10 @@ pub enum WalletMethod {
     EstimateOnchainFees,
     /// Invoice entities with state. See `nwc-invoices.md`.
     ListInvoices,
-    /// Pay a BIP-321 URI. See `nwc-bip321.md`.
-    PayBip321,
-    /// Generate a BIP-321 URI. See `nwc-bip321.md`.
-    MakeBip321,
+    /// Pay one instruction from a BIP-321 URI. NWC-321.
+    Pay,
+    /// Generate a BIP-321 URI. NWC-321.
+    Receive,
 
     // ── NWC-12, BOLT12 Offers; NWC-09, Payment Lookup ────────────────
     /// Create a BOLT12 offer. NWC-12.
@@ -122,8 +122,8 @@ impl WalletMethod {
         WalletMethod::ListAddresses,
         WalletMethod::EstimateOnchainFees,
         WalletMethod::ListInvoices,
-        WalletMethod::PayBip321,
-        WalletMethod::MakeBip321,
+        WalletMethod::Pay,
+        WalletMethod::Receive,
         WalletMethod::MakeOffer,
         WalletMethod::LookupPayment,
         WalletMethod::PayOffer,
@@ -170,8 +170,8 @@ impl WalletMethod {
             WalletMethod::ListAddresses => "list_addresses",
             WalletMethod::EstimateOnchainFees => "estimate_onchain_fees",
             WalletMethod::ListInvoices => "list_invoices",
-            WalletMethod::PayBip321 => "pay_bip321",
-            WalletMethod::MakeBip321 => "make_bip321",
+            WalletMethod::Pay => "pay",
+            WalletMethod::Receive => "receive",
             WalletMethod::MakeOffer => "make_offer",
             WalletMethod::LookupPayment => "lookup_payment",
             WalletMethod::PayOffer => "pay_offer",
@@ -212,8 +212,8 @@ impl FromStr for WalletMethod {
             "list_addresses" => WalletMethod::ListAddresses,
             "estimate_onchain_fees" => WalletMethod::EstimateOnchainFees,
             "list_invoices" => WalletMethod::ListInvoices,
-            "pay_bip321" => WalletMethod::PayBip321,
-            "make_bip321" => WalletMethod::MakeBip321,
+            "pay" => WalletMethod::Pay,
+            "receive" => WalletMethod::Receive,
             "make_offer" => WalletMethod::MakeOffer,
             "lookup_payment" => WalletMethod::LookupPayment,
             "pay_offer" => WalletMethod::PayOffer,

@@ -237,10 +237,28 @@ fn list_invoices_round_trips() {
 
 #[test]
 fn the_bip321_methods_round_trip() {
-    round_trip::<PayBip321Request>("pay_bip321", "request", "params");
-    round_trip::<PayBip321Response>("pay_bip321", "response", "result");
-    round_trip::<MakeBip321Request>("make_bip321", "request", "params");
-    round_trip::<MakeBip321Response>("make_bip321", "response", "result");
+    // NWC-321's, from NWC-321 — not ours from a document of ours. The
+    // extension `nwc-bip321.md` adds is optional on both requests, so
+    // upstream's own examples must decode unchanged, which is the test of
+    // whether it really is an extension.
+    round_trip::<PayRequest>("pay", "request", "params");
+    round_trip::<PayResponse>("pay", "response", "result");
+    round_trip::<ReceiveRequest>("receive", "request", "params");
+    round_trip::<ReceiveResponse>("receive", "response", "result");
+}
+
+#[test]
+fn the_bip321_extension_fields_are_absent_when_unset() {
+    // A wallet implementing only NWC-321 must serialise a `receive`
+    // request byte-identically to NWC-321's own. Otherwise adding
+    // `methods` and `label` makes every client claim an extension it does
+    // not have — the same rule `get_balance` is held to.
+    let plain = ReceiveRequest { amount: Some(123_000), ..Default::default() };
+    assert_eq!(
+        serde_json::to_value(&plain).unwrap(),
+        serde_json::json!({ "amount": 123_000 }),
+        "an extension field must be absent, not null"
+    );
 }
 
 // ── notifications ────────────────────────────────────────────────────
@@ -326,6 +344,9 @@ fn the_error_codes_the_specifications_name_have_variants() {
         // NWC-09's two.
         "MULTIPLE_MATCHES",
         "UNSUPPORTED_PAYMENT_TYPE",
+        // NWC-321's two.
+        "UNSUPPORTED_PAYMENT_INSTRUCTION",
+        "FEE_LIMIT_EXCEEDED",
     ] {
         let parsed: ErrorCode =
             serde_json::from_value(serde_json::json!(code)).expect("decodes");
