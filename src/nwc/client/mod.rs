@@ -15,10 +15,13 @@
 //! methods whose outcome arrives as a notification; NWC has none, so
 //! there is no `Pending` here.
 //!
-//! **Notifications are subscribed to by asking**, not by publishing an
-//! addressable event. NWC-02 has no subscribe method — a wallet sends
-//! what its grant permits, and [`WalletConnect::notifications`] is a
-//! stream of what arrives.
+//! **Notifications need a published subscription**, and the first version
+//! of this client did not send one. NWC-02 has no subscribe method — a
+//! wallet is meant to send what its grant permits — so this was written
+//! to read the relay and nothing else. But delivery here is the
+//! *intersection* of a grant and a kind `30199` subscription, and a
+//! client holding only the first gets nothing. See
+//! [`WalletConnect::notifications`].
 //!
 //! ## Why this exists
 //!
@@ -319,8 +322,49 @@ impl WalletConnect {
     /// arrives before the stream exists is not replayed, which is the same
     /// broadcast property `send` works around — and the reason a caller
     /// gating on `hold_invoice_accepted` must subscribe before it pays.
-    pub async fn notifications(&self) -> Result<Notifications, Error> {
+    ///
+    /// ## Two subscriptions, and both are required
+    ///
+    /// Reading the relay is not enough. This service delivers to the
+    /// **intersection** of a grant and a published kind `30199`
+    /// subscription — a controller the owner permitted *and* who asked —
+    /// so a client that only opens a relay filter is granted everything
+    /// and sent nothing. There is no error: the wallet simply has no
+    /// recipients, and the caller waits out its timeout.
+    ///
+    /// So this publishes the subscription first, encrypted to the wallet,
+    /// then opens the filter. `types` is what to ask for; asking for
+    /// nothing is how a client stops being sent anything.
+    ///
+    /// Published NWC-02 has no subscribe step, which is why the first
+    /// version of this omitted one. It is a property of the service, not
+    /// of the protocol, and a client written from the spec alone will
+    /// hang waiting for a notification that was never addressed to it.
+    pub async fn notifications(
+        &self,
+        types: &[crate::nwc::WalletNotificationType],
+    ) -> Result<Notifications, Error> {
         self.bootstrap().await?;
+
+        let wanted: Vec<&str> = types.iter().map(|t| t.as_str()).collect();
+        let content = self
+            .keys
+            .nip44_encrypt(&self.uri.wallet, &serde_json::to_string(&wanted)?)
+            .await
+            .map_err(Error::Signer)?;
+        let event = EventBuilder::new(Kind::Custom(crate::SUBSCRIPTION_KIND), content)
+            .tags([Tag::identifier(self.uri.wallet.to_hex()), Tag::public_key(self.uri.wallet)])
+            .sign(&self.keys)
+            .await
+            .map_err(Error::Signer)?;
+        self.client.send_event(&event).await.map_err(|e| Error::Relay(e.to_string()))?;
+
+        // The service reads the subscription off the relay, so there is a
+        // window where it is published and not yet in effect. A caller
+        // that paid inside that window would lose the notification it
+        // published the subscription in order to receive.
+        tokio::time::sleep(Duration::from_millis(500)).await;
+
         self.client
             .subscribe(
                 Filter::new()
