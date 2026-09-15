@@ -230,6 +230,23 @@ fn an_adopted_extension_is_advertised_like_core() {
 }
 
 #[test]
+fn a_declaration_is_not_a_method() {
+    // `notifications` says what a wallet **sends**. It is the info event's
+    // tag, not something a controller can call — and the macro reads one
+    // entry per function in the impl block, so adding it to the trait
+    // without excluding it made every wallet advertise it as a method.
+    // Found by `every_wallet_method`, which compares the info event
+    // against `WalletMethod::ALL`; asserted here so it cannot come back.
+    let stub = Stub::default();
+    assert!(
+        !stub.methods().contains(&"notifications"),
+        "notifications is a declaration, not a method: {:?}",
+        stub.methods()
+    );
+    assert!(!stub.methods().contains(&"prepare"), "nor is prepare");
+}
+
+#[test]
 fn a_wallet_that_does_not_implement_it_does_not_advertise_it() {
     assert_eq!(CoreOnly.methods(), &["get_balance"]);
 }

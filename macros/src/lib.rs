@@ -26,7 +26,8 @@ use syn::{parse_macro_input, ImplItem, ItemImpl};
 /// forgetting this macro is a compile error rather than a node that
 /// advertises nothing and denies everything at runtime.
 ///
-/// `prepare` is excluded: a pipeline hook, not a method a controller can
+/// `prepare` and `notifications` are excluded: a pipeline hook and a
+/// declaration, not methods a controller can
 /// invoke. `call` is excluded for the same reason and is now vestigial —
 /// no trait in this crate has one since 18.1 typed `WalletService`.
 ///
@@ -48,7 +49,12 @@ pub fn service(_attr: TokenStream, item: TokenStream) -> TokenStream {
     // `prepare` is a pipeline hook and `call` is a dispatch entry point.
     // Neither is a method a controller can invoke, and advertising one
     // would offer something nobody can call.
-    const NOT_A_METHOD: [&str; 3] = ["prepare", "methods", "call"];
+    // `notifications` declares what a wallet *sends*, which is the info
+    // event's tag rather than a method a controller can call. Adding it to
+    // `WalletService` without adding it here made every wallet advertise
+    // `notifications` as a method — caught by `every_wallet_method`, which
+    // compares the info event against `WalletMethod::ALL`.
+    const NOT_A_METHOD: [&str; 4] = ["prepare", "methods", "call", "notifications"];
 
     let names: Vec<String> = block
         .items
