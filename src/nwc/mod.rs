@@ -10,6 +10,8 @@
 //! knows the other. NNC was originally modelled on NWC; this is the return
 //! trip, with what NNC learned in between.
 
+#[cfg(feature = "client")]
+pub mod client;
 mod method;
 pub mod methods;
 pub mod types;
