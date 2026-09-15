@@ -1,4 +1,13 @@
-# nostr-ln
+# nostr-rs-ln
+
+> The repository is `nostr-rs-ln`; the crate is **`nostr-ln`**. The
+> language marker belongs to the repository, because every repository here
+> shares one GitHub namespace and the name is the only place it can go —
+> while crates.io is already the Rust registry. `nostr-rs-nwc` does the
+> same thing: the repository carries `-rs` and the crate inside it is
+> called `nostr`. See
+> [ways-of-working](https://github.com/Red-Token/net.h3/blob/master/doc/wow/ways-of-working.md#repository-naming).
+
 
 The service side of **NNC** ([NIP-XX]) and **NWC** ([NIP-47]): grants,
 limits, and the request pipeline. A node implements a handler; this crate
@@ -72,7 +81,7 @@ A node writes a handler. This crate owns everything else, in this order:
 **This is not the order NIP-XX gives.** That order checks the quota against
 a cost derived from the request, which excludes fees — so a node spends
 `amount + fee` while recording `amount`, on every spending call. See
-[issue 1](https://github.com/DarkWebDivingClub/nostr-ln/issues/1).
+[issue 1](https://github.com/DarkWebDivingClub/nostr-rs-ln/issues/1).
 
 Two orderings carry weight beyond tidiness. **Authorize precedes validate**,
 so a caller with no grant learns nothing about which parameters are

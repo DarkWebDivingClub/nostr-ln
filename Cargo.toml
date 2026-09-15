@@ -7,7 +7,7 @@ version = "0.1.0"
 edition = "2021"
 license = "MIT"
 description = "The service side of NNC (NIP-XX) and NWC (NIP-47): grants, limits, and the request pipeline."
-repository = "https://github.com/DarkWebDivingClub/nostr-ln"
+repository = "https://github.com/DarkWebDivingClub/nostr-rs-ln"
 publish = false
 
 [dependencies]
