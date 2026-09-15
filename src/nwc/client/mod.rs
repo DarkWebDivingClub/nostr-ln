@@ -356,7 +356,7 @@ impl WalletConnect {
             .tags([Tag::identifier(self.uri.wallet.to_hex()), Tag::public_key(self.uri.wallet)])
             .sign(&self.keys)
             .await
-            .map_err(Error::Signer)?;
+            .map_err(|e| Error::Relay(e.to_string()))?;
         self.client.send_event(&event).await.map_err(|e| Error::Relay(e.to_string()))?;
 
         // The service reads the subscription off the relay, so there is a
